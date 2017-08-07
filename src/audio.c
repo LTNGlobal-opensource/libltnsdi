@@ -133,6 +133,8 @@ int ltnsdi_audio_channels_write(struct ltnsdi_context_s *ctx, uint8_t *buf,
 		if (ch->type == AUDIO_TYPE_SMPTE337)
 			continue;
 
+		ch->pcm.samplesWritten += audioFrames;
+
 		/* Now process the payload as if its PCM. */
 		uint32_t largestSample = 0;
 		uint8_t *dat = demuxChannelWords(ctx, buf, audioFrames, sampleDepth, channelsPerFrame, frameStrideBytes, i, &largestSample);
@@ -149,8 +151,7 @@ int ltnsdi_audio_channels_write(struct ltnsdi_context_s *ctx, uint8_t *buf,
 
 		/* Lets scan the channel, see if our samples are 16, 20 or 24 bit constrained. */
 		double x = largestSample;
-		if (bits <= 15)
-		{
+		if (bits <= 15) {
 			/* 16 bit */
 			ch->pcm.dbFS = 20 * log10( x / 32767.0);
 		} else
@@ -158,7 +159,7 @@ int ltnsdi_audio_channels_write(struct ltnsdi_context_s *ctx, uint8_t *buf,
 			/* 24bit */
 			ch->pcm.dbFS = 20 * log10( x / 8388607.0);
 		}
-		//printf("dbFS = %02.f\n", ch->pcm.dbFS);
+		/* TODO: 32 bit and 20bit audio. */
 
 		free(dat);
 	}

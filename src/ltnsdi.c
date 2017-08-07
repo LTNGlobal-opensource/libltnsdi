@@ -41,7 +41,7 @@ int ltnsdi_context_alloc(struct ltnsdi_context_s **ctx)
 	return 0; /* Success */
 }
 
-void ltnsdi_context_destroy(struct ltnsdi_context_s *ctx)
+void ltnsdi_context_free(struct ltnsdi_context_s *ctx)
 {
 	memset(ctx, 0, sizeof(*ctx));
 	free(ctx);

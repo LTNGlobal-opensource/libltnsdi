@@ -39,6 +39,12 @@ static uint8_t *demuxChannelWords(struct ltnsdi_context_s *ctx, uint8_t *buf,
 	uint32_t *largestSample)
 {
 	*largestSample = 0;
+#if 0
+	printf("%s depth = %d -- ", __func__, sampleDepth);
+	for (int i = 0; i < 12; i++)
+		printf("%02x ", *(buf + i));
+	printf("\n");
+#endif
 
 	if (sampleDepth == 32) {
 		int step = (frameStrideBytes / sizeof(uint32_t)) - 1;
@@ -116,7 +122,7 @@ int ltnsdi_audio_channels_write(struct ltnsdi_context_s *ctx, uint8_t *buf,
 {
 	struct sdiaudio_channels_s *channels = getChannels(ctx);
 
-	if (channelsPerFrame >= MAXSDI_AUDIO_CHANNELS)
+	if (channelsPerFrame >  MAXSDI_AUDIO_CHANNELS)
 		return -1;
 
 	pthread_mutex_lock(&channels->mutex);
@@ -141,6 +147,12 @@ int ltnsdi_audio_channels_write(struct ltnsdi_context_s *ctx, uint8_t *buf,
 		if (!dat)
 			continue;
 
+		uint32_t z = 
+			((largestSample & 0xff000000) >> 24) |
+			((largestSample & 0x00ff0000) >>  8) |
+			((largestSample & 0x0000ff00) <<  8) |
+			((largestSample & 0x000000ff) << 24);
+		largestSample = z;
 		int bits = 0;
 		for (int z = 31; z > 0; z--) {
 			if (largestSample & (1 << z)) {
@@ -159,7 +171,8 @@ int ltnsdi_audio_channels_write(struct ltnsdi_context_s *ctx, uint8_t *buf,
 			/* 24bit */
 			ch->pcm.dbFS = 20 * log10( x / 8388607.0);
 		}
-		/* TODO: 32 bit and 20bit audio. */
+
+//		printf("g%dc%d: %.03fdbFS largest: %08x\n", ch->groupNr, ch->channelNr, ch->pcm.dbFS, largestSample);
 
 		free(dat);
 	}
@@ -183,7 +196,7 @@ int sdiaudio_channels_alloc(struct sdiaudio_channels_s **ctx)
 		for (int c = 0; c < SDI_AUDIO_CHANNELS; c++) {
 			struct sdiaudio_channel_s *ch = &o->ch[ (g * SDI_AUDIO_GROUPS) + c ];
 
-			ch->groupNr = g;
+			ch->groupNr = g + 1;
 			ch->channelNr = c;
 			ch->userContext = NULL;
 			ch->type = AUDIO_TYPE_UNDEFINED;

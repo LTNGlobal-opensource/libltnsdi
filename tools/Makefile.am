@@ -24,12 +24,15 @@ CXXFLAGS = $(CFLAGS)
 SRC  = ltnsdi_util.c
 SRC += $(BLACKMAGIC_SDK_PATH)//DeckLinkAPIDispatch.cpp
 SRC += demo.c
+SRC += audio_analyzer.cpp
 
 bin_PROGRAMS  = ltnsdi_util
 bin_PROGRAMS += ltnsdi_demo
+bin_PROGRAMS += ltnsdi_audio_analyzer
 
 ltnsdi_util_SOURCES = $(SRC)
 ltnsdi_demo_SOURCES = $(SRC)
+ltnsdi_audio_analyzer_SOURCES = $(SRC)
 
 libltnsdi_noinst_includedir = $(includedir)
 

@@ -29,5 +29,16 @@
 
 int demo_main(int argc, char *argv[])
 {
+
+	struct ltnsdi_context_s *ctx;
+	if (ltnsdi_context_alloc(&ctx) < 0) {
+		fprintf(stderr, "Error allocating a general SDI context.\n");
+		return -1;
+	}
+	printf("Allocated a SDI helper context.\n");
+
+	ltnsdi_context_free(ctx);
+	printf("Free'd the SDI helper context.\n");
+
 	return 0;
 }

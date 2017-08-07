@@ -27,10 +27,55 @@
 
 #include <stdint.h>
 #include <stdlib.h>
+#include <math.h>
 #include <sys/errno.h>
 #include <libltnsdi/ltnsdi.h>
+#include <libltnsdi/smpte338.h>
 
 #include "ltnsdi-private.h"
+
+static uint8_t *demuxChannelWords(struct ltnsdi_context_s *ctx, uint8_t *buf,
+        uint32_t audioFrames, uint32_t sampleDepth, uint32_t channelsPerFrame, uint32_t frameStrideBytes, int channelIndex,
+	uint32_t *largestSample)
+{
+	*largestSample = 0;
+
+	if (sampleDepth == 32) {
+		int step = (frameStrideBytes / sizeof(uint32_t)) - 1;
+		uint32_t *b   = malloc(audioFrames * sizeof(uint32_t));
+		uint32_t *dst = b;
+		uint32_t *src = (uint32_t *)buf;
+		src += channelIndex;
+
+		for (int i = 0; i < audioFrames; i++) {
+			*dst = *src;
+			if (*dst > *largestSample)
+				*largestSample = *dst;
+			src += step;
+			dst++;
+		}
+		return (uint8_t *)b;
+	}
+
+	if (sampleDepth == 16) {
+		uint32_t step = (frameStrideBytes / sizeof(uint16_t)) - 1;
+		uint32_t *b = malloc(audioFrames * sizeof(uint32_t));
+		uint32_t *dst = b;
+		uint16_t *src = (uint16_t *)buf;
+		src += channelIndex;
+
+		for (int i = 0; i < audioFrames; i++) {
+			*dst = *src;
+			if (*dst > *largestSample)
+				*largestSample = *dst;
+			src += step;
+			dst++;
+		}
+		return (uint8_t *)b;
+	}
+
+	return NULL;
+}
 
 static void *detector_callback(void *userContext,
 	struct smpte337_detector_s *ctx,
@@ -38,31 +83,25 @@ static void *detector_callback(void *userContext,
 {
 	struct sdiaudio_channel_s *ch = (struct sdiaudio_channel_s *)userContext;
 
-	printf("libltnsdi:%s() groupnr: %d channelnr: %d datamode = %d [%sbit], datatype = %d [payload: %s]"
+	printf("libltnsdi:%s() groupnr: %d channelnr: %d datamode = %d [%dbit], datatype = %d [payload: %s]"
 		", payload_bitcount = %d, payload = %p\n",
 		__func__,
 		ch->groupNr,
 		ch->channelNr,
-		datamode,
-		datamode == 0 ? "16" :
-		datamode == 1 ? "20" :
-		datamode == 2 ? "24" : "Reserved",
-		datatype,
-		smpte338_lookupDataTypeDescription(datatype),
+		datamode, smpte338_lookupDataMode(datamode),
+		datatype, smpte338_lookupDataTypeDescription(datatype),
 		payload_bitCount,
 		payload);
 
+	if (ch->type == AUDIO_TYPE_PCM) {
+		/* PCM removal alert */
+	}
+
+	ch->wordLength = smpte338_lookupDataMode(datamode);
 	ch->type = AUDIO_TYPE_SMPTE337;
 	ch->smpte337.framesWritten++;
 
-	if (datamode == 0)
-		ch->wordLength = 16;
-	else
-	if (datamode == 1)
-		ch->wordLength = 20;
-	else
-	if (datamode == 2)
-		ch->wordLength = 24;
+	/* SMPTE 337 Discovery alert. */
 
 	return 0;
 }
@@ -90,6 +129,38 @@ int ltnsdi_audio_channels_write(struct ltnsdi_context_s *ctx, uint8_t *buf,
 			smpte337_detector_write(ch->smpte337.detector, buf + sampleOffset, audioFrames, sampleDepth,
 				channelsPerFrame, frameStrideBytes, 1);
 		}
+
+		if (ch->type == AUDIO_TYPE_SMPTE337)
+			continue;
+
+		/* Now process the payload as if its PCM. */
+		uint32_t largestSample = 0;
+		uint8_t *dat = demuxChannelWords(ctx, buf, audioFrames, sampleDepth, channelsPerFrame, frameStrideBytes, i, &largestSample);
+		if (!dat)
+			continue;
+
+		int bits = 0;
+		for (int z = 31; z > 0; z--) {
+			if (largestSample & (1 << z)) {
+				bits = z;
+				break;
+			}
+		}
+
+		/* Lets scan the channel, see if our samples are 16, 20 or 24 bit constrained. */
+		double x = largestSample;
+		if (bits <= 15)
+		{
+			/* 16 bit */
+			ch->pcm.dbFS = 20 * log10( x / 32767.0);
+		} else
+		if (largestSample <= (1 << 23)) {
+			/* 24bit */
+			ch->pcm.dbFS = 20 * log10( x / 8388607.0);
+		}
+		//printf("dbFS = %02.f\n", ch->pcm.dbFS);
+
+		free(dat);
 	}
 
 	pthread_mutex_unlock(&channels->mutex);
@@ -154,4 +225,3 @@ void sdiaudio_channels_free(struct sdiaudio_channels_s *ctx)
 	/* Intensionally leave the mutex locked. */
 	free(ctx);
 }
-

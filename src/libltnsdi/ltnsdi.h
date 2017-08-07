@@ -24,7 +24,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-
 /**
  * @file	ltnsdi.h
  * @author	Steven Toth <stoth@ltnglobal.com>
@@ -42,12 +41,30 @@
 extern "C" {
 #endif
 
+struct ltnsdi_context_s;
+
+typedef void (*ltnsdi_callback_smpte337_discovery)(void *userContext, struct ltnsdi_context_s *ctx, uint32_t groupNr, uint32_t channelNr); 
+typedef void (*ltnsdi_callback_smpte337_removal)(void *userContext, struct ltnsdi_context_s *ctx, uint32_t groupNr, uint32_t channelNr);
+typedef void (*ltnsdi_callback_pcm_discovery)(void *userContext, struct ltnsdi_context_s *ctx, uint32_t groupNr, uint32_t channelNr);
+typedef void (*ltnsdi_callback_pcm_removal)(void *userContext, struct ltnsdi_context_s *ctx, uint32_t groupNr, uint32_t channelNr);
+
+struct ltnsdi_context_callbacks_s
+{
+	ltnsdi_callback_smpte337_discovery smpte337_discovery;
+	ltnsdi_callback_smpte337_removal   smpte337_removal;
+	ltnsdi_callback_pcm_discovery      pcm_discovery;
+	ltnsdi_callback_pcm_removal        pcm_removal;
+};
+
 struct ltnsdi_context_s
 {
 	/* Internal use by the library */
 	int   verbose;
-	void *callback_context;
+	void *callbackContext;
 	void *priv;
+
+	/* Callbacks */
+	struct ltnsdi_context_callbacks_s cb;
 };
 
 /**

@@ -153,7 +153,7 @@ static int smpte337_detector_hunt_syncwords(struct smpte337_detector_s *ctx, uin
 		uint32_t Pa = *p;
 		uint32_t Pb = *(p + (frameStrideBytes / sizeof(uint32_t)));
 
-printf("Pa %08x / %08x\n", Pa, Pb);
+//printf("Pa %08x / %08x\n", Pa, Pb);
 		if ((Pa == 0xf8720000) && (Pb == 0x4e1f0000)) {
 			return 16;
 		} else

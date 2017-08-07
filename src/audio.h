@@ -73,6 +73,7 @@ struct sdiaudio_channel_s
 	struct {
 		uint64_t samplesWritten;
 		uint32_t sampleRateHz; /* Eg. 48000, 44100 */
+		double dbFS; /* 0dbFS for the first sample in the last buffer. */
 	} pcm;
 
 	uint32_t wordLength;	/* 0 (Unset), 16, 20 or 24. */

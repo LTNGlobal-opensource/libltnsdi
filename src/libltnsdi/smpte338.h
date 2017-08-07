@@ -42,6 +42,7 @@ extern "C" {
 #endif
 
 const char *smpte338_lookupDataTypeDescription(uint32_t nr);
+uint32_t    smpte338_lookupDataMode(uint32_t nr);
 
 #ifdef __cplusplus
 };

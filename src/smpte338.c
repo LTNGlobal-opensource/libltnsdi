@@ -53,3 +53,20 @@ const char *smpte338_lookupDataTypeDescription(uint32_t nr)
 {
 	return smpte338_dataTypes[ nr & 0x1f ];
 }
+
+uint32_t smpte338_lookupDataMode(uint32_t nr)
+{
+	nr &= 0x03;
+
+	if (nr == 0)
+		return 16;
+	else
+	if (nr == 1)
+		return 20;
+	else
+	if (nr == 2)
+		return 24;
+
+	/* Reserved */
+	return 0;
+}

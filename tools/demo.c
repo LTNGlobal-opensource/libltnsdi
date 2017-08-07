@@ -100,7 +100,6 @@ static int test_16bitPayload_in_32bit_words_G1C0(struct ltnsdi_context_s *ctx)
 	int ret = 0;
 
 	uint32_t channels = 1;
-	uint32_t depth = 16;
 	uint32_t wordLength = 32;
 	uint32_t stride = (wordLength / 8) * channels;
 	uint32_t audioFrames = 32;
@@ -150,7 +149,6 @@ static int test_24bitPayload_in_32bit_words_G1C0(struct ltnsdi_context_s *ctx)
 	int ret = 0;
 
 	uint32_t channels = 1;
-	uint32_t depth = 24;
 	uint32_t wordLength = 32;
 	uint32_t stride = (wordLength / 8) * channels;
 	uint32_t audioFrames = 128;
@@ -194,6 +192,40 @@ static int test_24bitPayload_in_32bit_words_G1C0(struct ltnsdi_context_s *ctx)
 	return ret;
 }
 
+static int test_16bitPCM_G1C0_G1C1(struct ltnsdi_context_s *ctx)
+{
+	int ret = 0;
+
+	uint32_t channels = 2;
+	uint32_t wordLength = 32;
+	uint32_t stride = (wordLength / 8) * channels;
+	uint32_t audioFrames = 128;
+
+	int cnt = 0;
+	while (cnt++ < 2) {
+		uint32_t *buf = malloc(audioFrames * stride);
+		uint32_t *sample = buf;
+
+		for (int j = 0; j < audioFrames; j++) {
+			for (int i = 0; i < channels; i++) {
+				uint32_t val = 0xffff;
+				*sample = val;
+				*sample &= 0x0000ffff;
+				sample++;
+			}
+		}
+
+		int r = ltnsdi_audio_channels_write(ctx, (uint8_t *)buf, audioFrames, wordLength, channels, stride);
+		if (r < 0) {
+			fprintf(stderr, "Error writing audio into minitoring cores.\n");
+			ret = -1;
+		}
+		free(buf);
+	}
+
+	return ret;
+}
+
 int demo_main(int argc, char *argv[])
 {
 	struct ltnsdi_context_s *ctx;
@@ -205,7 +237,8 @@ int demo_main(int argc, char *argv[])
 
 	int results = 0;
 	//results += test_16bitPayload_in_32bit_words_G1C0(ctx);
-	results += test_24bitPayload_in_32bit_words_G1C0(ctx);
+	//results += test_24bitPayload_in_32bit_words_G1C0(ctx);
+	results += test_16bitPCM_G1C0_G1C1(ctx);
 
 	ltnsdi_context_free(ctx);
 	printf("Free'd the SDI helper context.\n");

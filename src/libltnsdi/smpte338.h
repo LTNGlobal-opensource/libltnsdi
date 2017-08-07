@@ -26,54 +26,25 @@
 
 
 /**
- * @file	ltnsdi.h
+ * @file	smpte338.h
  * @author	Steven Toth <stoth@ltnglobal.com>
  * @copyright	Copyright (c) LiveTimeNet, Inc. 2017. All Rights Reserved.
- * @brief	Process, analyze, convert SDI material.
+ * @brief	Human printable labels and helper descriptions.
  */
 
-#ifndef _LTNSDI_H
-#define _LTNSDI_H
+#ifndef _SMPTE338_H
+#define _SMPTE338_H
 
 #include <stdint.h>
-#include <sys/errno.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-struct ltnsdi_context_s
-{
-	/* Internal use by the library */
-	int   verbose;
-	void *callback_context;
-	void *priv;
-};
-
-/**
- * @brief	Create or destroy some basic application/library context.\n
- *              The context is considered private and is likely to change.
- *              release the context with ltnsdi_context_free().
- * @param[out]	struct ltnsdi_context_s **ctx - Context.
- * @return      0 - Success
- * @return      < 0 - Error
- */
-int ltnsdi_context_alloc(struct ltnsdi_context_s **ctx);
-
-/**
- * @brief	Deallocate and destroy a context. See ltnsdi_context_alloc()
- * @param[in]	struct ltnsdi_context_s *ctx - Context.
- */
-void ltnsdi_context_free(struct ltnsdi_context_s *ctx);
-
-/* Write many channels at once to the internal channels.
- * zero on success else < zero.
- * */
-int ltnsdi_audio_channels_write(struct ltnsdi_context_s *ctx, uint8_t *buf,
-        uint32_t audioFrames, uint32_t sampleDepth, uint32_t channelsPerFrame, uint32_t frameStrideBytes);
+const char *smpte338_lookupDataTypeDescription(uint32_t nr);
 
 #ifdef __cplusplus
 };
 #endif
 
-#endif /* _LTNSDI_H */
+#endif /* _SMPTE338_H */

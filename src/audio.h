@@ -26,54 +26,70 @@
 
 
 /**
- * @file	ltnsdi.h
+ * @file	audio.h
  * @author	Steven Toth <stoth@ltnglobal.com>
  * @copyright	Copyright (c) LiveTimeNet, Inc. 2017. All Rights Reserved.
  * @brief	Process, analyze, convert SDI material.
  */
 
-#ifndef _LTNSDI_H
-#define _LTNSDI_H
+#ifndef _AUDIO_H
+#define _AUDIO_H
 
 #include <stdint.h>
-#include <sys/errno.h>
+#include <pthread.h>
+#include <libltnsdi/ltnsdi.h>
+
+#include "ltnsdi-private.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-struct ltnsdi_context_s
+#define SDI_AUDIO_GROUPS    4
+#define SDI_AUDIO_CHANNELS  4
+#define MAXSDI_AUDIO_CHANNELS (SDI_AUDIO_GROUPS * SDI_AUDIO_CHANNELS)
+
+struct smpte337_detector_s;
+
+enum sdiaudio_channel_type_e
 {
-	/* Internal use by the library */
-	int   verbose;
-	void *callback_context;
-	void *priv;
+	AUDIO_TYPE_UNDEFINED = 0,
+	AUDIO_TYPE_PCM,
+	AUDIO_TYPE_SMPTE337,
 };
 
-/**
- * @brief	Create or destroy some basic application/library context.\n
- *              The context is considered private and is likely to change.
- *              release the context with ltnsdi_context_free().
- * @param[out]	struct ltnsdi_context_s **ctx - Context.
- * @return      0 - Success
- * @return      < 0 - Error
- */
-int ltnsdi_context_alloc(struct ltnsdi_context_s **ctx);
+struct sdiaudio_channel_s
+{
+	uint32_t groupNr;	/* 1-4 */
+	uint32_t channelNr;	/* 0-3 */
 
-/**
- * @brief	Deallocate and destroy a context. See ltnsdi_context_alloc()
- * @param[in]	struct ltnsdi_context_s *ctx - Context.
- */
-void ltnsdi_context_free(struct ltnsdi_context_s *ctx);
+	void *userContext;
 
-/* Write many channels at once to the internal channels.
- * zero on success else < zero.
- * */
-int ltnsdi_audio_channels_write(struct ltnsdi_context_s *ctx, uint8_t *buf,
-        uint32_t audioFrames, uint32_t sampleDepth, uint32_t channelsPerFrame, uint32_t frameStrideBytes);
+	enum sdiaudio_channel_type_e type;
+	struct {
+		struct smpte337_detector_s *detector;
+		uint64_t framesWritten;
+	} smpte337;
+	struct {
+		uint64_t samplesWritten;
+		uint32_t sampleRateHz; /* Eg. 48000, 44100 */
+	} pcm;
+
+	uint32_t wordLength;	/* 0 (Unset), 16, 20 or 24. */
+	struct sdiaudio_channel_s *pairedChannel;
+};
+
+struct sdiaudio_channels_s
+{
+	pthread_mutex_t mutex;
+	struct sdiaudio_channel_s ch[MAXSDI_AUDIO_CHANNELS];
+};
+
+int sdiaudio_channels_alloc(struct sdiaudio_channels_s **ctx);
+void sdiaudio_channels_free(struct sdiaudio_channels_s *ctx);
 
 #ifdef __cplusplus
 };
 #endif
 
-#endif /* _LTNSDI_H */
+#endif /* _AUDIO_H */

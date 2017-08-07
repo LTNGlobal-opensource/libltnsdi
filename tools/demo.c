@@ -25,17 +25,187 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <libltnsdi/ltnsdi.h>
+
+
+#define DATA_MODE_16BIT 0
+#define DATA_MODE_24BIT 2
+static void generate_smpte337_header(uint8_t *dst, uint16_t payloadLength, uint8_t dataType, uint8_t dataMode)
+{
+	if (dataMode == DATA_MODE_16BIT) {
+		uint8_t *x = dst;
+
+		/* Pa */
+		*(x++) = 0xf8;
+		*(x++) = 0x72;
+
+		/* Pb */
+		*(x++) = 0x4e;
+		*(x++) = 0x1f;
+
+		/* Pc Burst info */
+		*(x++) = 0x00;
+		*(x++) = (dataType & 0x1f) | ((dataMode & 0x03) << 5);
+
+		/* Pd */
+		*(x++) = (payloadLength >> 8);
+		*(x++) = payloadLength;
+
+		/* Pe */
+		*(x++) = 0xaa;
+		*(x++) = 0xaa;
+		
+		/* Pf */
+		*(x++) = 0x55;
+		*(x++) = 0x55;
+	} else
+	if (dataMode == DATA_MODE_24BIT) {
+		uint8_t *x = dst;
+
+		/* Pa */
+		*(x++) = 0x96;
+		*(x++) = 0xf8;
+		*(x++) = 0x72;
+
+		/* Pb */
+		*(x++) = 0xa5;
+		*(x++) = 0x4e;
+		*(x++) = 0x1f;
+
+		/* Pc Burst info */
+		*(x++) = 0x00;
+		*(x++) = 0x00;
+		*(x++) = (dataType & 0x1f) | ((dataMode & 0x03) << 5);
+
+		/* Pd */
+		*(x++) = 0x00;
+		*(x++) = (payloadLength >> 8);
+		*(x++) = payloadLength;
+
+		/* Pe */
+		*(x++) = 0xaa;
+		*(x++) = 0xaa;
+		*(x++) = 0xaa;
+		
+		/* Pf */
+		*(x++) = 0x55;
+		*(x++) = 0x55;
+		*(x++) = 0x55;
+	}
+}
+
+static int test_16bitPayload_in_32bit_words_G1C0(struct ltnsdi_context_s *ctx)
+{
+	int ret = 0;
+
+	uint32_t channels = 1;
+	uint32_t depth = 16;
+	uint32_t wordLength = 32;
+	uint32_t stride = (wordLength / 8) * channels;
+	uint32_t audioFrames = 32;
+
+	uint8_t *buf = malloc(audioFrames * stride * 4);
+
+	uint8_t header[12];
+	generate_smpte337_header(&header[0], 0x0010, 0x07, DATA_MODE_16BIT);
+
+	int cnt = 0;
+	while (cnt++ < 16) {
+		uint32_t *sample = (uint32_t *)buf;
+		uint32_t *s32 = (uint32_t *)buf;
+		for (int i = 0; i < (stride / 2) * audioFrames; i++) {
+			*(sample + i) = -1;
+		}
+
+		/* Write the 337 header into a buffer G1C0 */
+		for (int i = 0; i < 6; i++) {
+			uint32_t v = (header[(i * 2) + 0] << 24) | (header[(i * 2) + 1] << 16);
+			*(s32 + i) = v;
+
+			printf("%08x ", *(s32 + i));
+		}
+
+		printf("\n");
+		sample = (uint32_t *)buf;
+		for (int i = 0; i < 8; i++) {
+			printf("%08x ", *(sample + i));
+		}
+		printf("\n");
+
+		int r = ltnsdi_audio_channels_write(ctx, buf, audioFrames, wordLength, channels, stride);
+		if (r < 0) {
+			fprintf(stderr, "Error writing audio into minitoring cores.\n");
+			ret = -1;
+		}
+		break;
+	}
+	free(buf);
+
+	return ret;
+}
+
+static int test_24bitPayload_in_32bit_words_G1C0(struct ltnsdi_context_s *ctx)
+{
+	int ret = 0;
+
+	uint32_t channels = 1;
+	uint32_t depth = 24;
+	uint32_t wordLength = 32;
+	uint32_t stride = (wordLength / 8) * channels;
+	uint32_t audioFrames = 128;
+
+	uint8_t *buf = malloc(audioFrames * stride * 4);
+
+	uint8_t header[32];
+	generate_smpte337_header(&header[0], 0x0010, 0x07, DATA_MODE_24BIT);
+
+	int cnt = 0;
+	while (cnt++ < 16) {
+		uint32_t *sample = (uint32_t *)buf;
+		uint32_t *s32 = (uint32_t *)buf;
+		for (int i = 0; i < (stride / 2) * audioFrames; i++) {
+			*(sample + i) = -1;
+		}
+
+		/* Write the 337 header into a buffer G1C0 */
+		for (int i = 0; i < 6; i++) {
+			uint32_t v = (header[(i * 3) + 0] << 24) | (header[(i * 3) + 1] << 16) | (header[(i * 3) + 2] << 8);
+			*(s32 + i) = v;
+
+			printf("%08x ", *(s32 + i));
+		}
+
+		printf("\n");
+		sample = (uint32_t *)buf;
+		for (int i = 0; i < 20; i++) {
+			printf("%08x ", *(sample + i));
+		}
+		printf("\n");
+
+		int r = ltnsdi_audio_channels_write(ctx, buf, audioFrames, wordLength, channels, stride);
+		if (r < 0) {
+			fprintf(stderr, "Error writing audio into minitoring cores.\n");
+			ret = -1;
+		}
+	}
+	free(buf);
+
+	return ret;
+}
 
 int demo_main(int argc, char *argv[])
 {
-
 	struct ltnsdi_context_s *ctx;
 	if (ltnsdi_context_alloc(&ctx) < 0) {
 		fprintf(stderr, "Error allocating a general SDI context.\n");
 		return -1;
 	}
 	printf("Allocated a SDI helper context.\n");
+
+	int results = 0;
+	//results += test_16bitPayload_in_32bit_words_G1C0(ctx);
+	results += test_24bitPayload_in_32bit_words_G1C0(ctx);
 
 	ltnsdi_context_free(ctx);
 	printf("Free'd the SDI helper context.\n");

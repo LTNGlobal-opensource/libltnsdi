@@ -24,35 +24,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#include <libltnsdi/ltnsdi.h>
-
+#include <libltnsdi/smpte337_detector.h>
 #include "audio.h"
-//#include "core-private.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-int ltnsdi_context_alloc(struct ltnsdi_context_s **ctx)
-{
-	struct ltnsdi_context_s *p = calloc(1, sizeof(struct ltnsdi_context_s));
-	if (!p)
-		return -ENOMEM;
-
-	if (sdiaudio_channels_alloc((struct sdiaudio_channels_s **)&p->priv) < 0) {
-		free(p);
-		return -1;
-	}
-
-	*ctx = p;
-	return 0; /* Success */
-}
-
-void ltnsdi_context_free(struct ltnsdi_context_s *ctx)
-{
-	if (ctx->priv)
-		sdiaudio_channels_free((struct sdiaudio_channels_s *)ctx->priv);
-
-	memset(ctx, 0, sizeof(*ctx));
-	free(ctx);
-}
+#define getChannels(ctx) ((struct sdiaudio_channels_s *)((ctx)->priv))

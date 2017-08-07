@@ -63,10 +63,8 @@ int ltnsdi_context_alloc(struct ltnsdi_context_s **ctx);
 /**
  * @brief	Deallocate and destroy a context. See ltnsdi_context_alloc()
  * @param[in]	struct ltnsdi_context_s *ctx - Context.
- * @return      0 - Success
- * @return      < 0 - Error
  */
-int ltnsdi_context_free(struct ltnsdi_context_s *ctx);
+void ltnsdi_context_free(struct ltnsdi_context_s *ctx);
 
 #ifdef __cplusplus
 };

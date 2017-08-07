@@ -38,6 +38,8 @@ int ltnsdi_context_alloc(struct ltnsdi_context_s **ctx)
 	if (!p)
 		return -ENOMEM;
 
+	*ctx = p;
+
 	return 0; /* Success */
 }
 

@@ -215,10 +215,16 @@ int sdiaudio_channels_alloc(struct sdiaudio_channels_s **ctx)
 
 			ch->groupNr = g + 1;
 			ch->channelNr = c;
+
+			if (c == 0 || c == 2)
+				ch->pairedChannel = &o->ch[ (g * SDI_AUDIO_GROUPS) + c + 1 ];
+			else
+			if (c == 1 || c == 3)
+				ch->pairedChannel = &o->ch[ (g * SDI_AUDIO_GROUPS) + c - 1 ];
+
 			ch->userContext = NULL;
 			ch->type = AUDIO_TYPE_UNDEFINED;
 			ch->wordLength = 0;
-			ch->pairedChannel = NULL;
 
 			/* PCM */
 			ch->pcm.samplesWritten = 0;

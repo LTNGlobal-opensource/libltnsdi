@@ -54,8 +54,9 @@ struct smpte337_detector_s;
 enum sdiaudio_channel_type_e
 {
 	AUDIO_TYPE_UNDEFINED = 0,
-	AUDIO_TYPE_PCM,
-	AUDIO_TYPE_SMPTE337,
+	AUDIO_TYPE_SMPTE337,	/* We detected SMPTE337 headers */
+	AUDIO_TYPE_PCM,		/* We didn't detect SMPTE337 headers, and the channel has data, we're assuming its PCM. */
+	AUDIO_TYPE_UNUSED,	/* We didn't detect SMPTE337 headers, and the channel consistently has zeros for data. */
 };
 
 struct sdiaudio_channel_s

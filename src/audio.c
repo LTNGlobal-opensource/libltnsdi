@@ -34,6 +34,57 @@
 
 #include "ltnsdi-private.h"
 
+__inline__ static enum sdiaudio_channel_type_e sdiaudio_channel_getType(struct sdiaudio_channel_s *ch)
+{
+	/* Lets have a centralized place so we can adjust date/times for queries etc. */
+	return ch->type;
+}
+
+static void sdiaudio_channel_setType(struct sdiaudio_channel_s *ch, enum sdiaudio_channel_type_e type)
+{
+	if (ch->type == type && type != AUDIO_TYPE_UNDEFINED)
+		return;
+
+	if (type != AUDIO_TYPE_UNUSED) {
+		ch->unused.unusedSampleCount = 0;
+	}
+
+	if (type != AUDIO_TYPE_PCM) {
+		ch->pcm.samplesWritten = 0;
+		ch->pcm.sampleRateHz = 0;
+		ch->pcm.dbFS = 0.0;
+	}
+
+	if (type != AUDIO_TYPE_SMPTE337) {
+		ch->smpte337.framesWritten = 0;
+	} else {
+		/* Undefined State */
+	}
+
+	ch->type = type;
+	gettimeofday(&ch->type_last_update, NULL);
+}
+
+__inline__ void sdiaudio_channel_statsUpdate(struct sdiaudio_channel_s *ch)
+{
+	switch (ch->type) {
+	case AUDIO_TYPE_UNUSED:
+		ch->unused.unusedSampleCount++;
+		gettimeofday(&ch->unused.last_update, NULL);
+		break;
+	case AUDIO_TYPE_SMPTE337:
+		ch->smpte337.framesWritten++;
+		gettimeofday(&ch->smpte337.last_update, NULL);
+		break;
+	case AUDIO_TYPE_PCM:
+		ch->pcm.samplesWritten++;
+		gettimeofday(&ch->pcm.last_update, NULL);
+		break;
+	case AUDIO_TYPE_UNDEFINED:
+		break;
+	}
+}
+
 __inline__ uint32_t be_u32(uint32_t n)
 {
 #if G_BYTE_ORDER == G_LITTLE_ENDIAN 
@@ -48,6 +99,7 @@ __inline__ uint32_t be_u32(uint32_t n)
 static const char *sdiaudio_channel_type_name(enum sdiaudio_channel_type_e e)
 {
 	switch (e) {
+	default:
 	case AUDIO_TYPE_UNDEFINED: return "UNDEFINED";
 	case AUDIO_TYPE_SMPTE337:  return "SMPTE337";
 	case AUDIO_TYPE_PCM:       return "PCM";
@@ -121,13 +173,13 @@ static void *detector_callback(void *userContext,
 		payload_bitCount,
 		payload);
 
-	if (ch->type == AUDIO_TYPE_PCM) {
+	if (sdiaudio_channel_getType(ch) == AUDIO_TYPE_PCM) {
 		/* PCM removal alert */
 	}
 
 	ch->wordLength = smpte338_lookupDataMode(datamode);
-	ch->type = AUDIO_TYPE_SMPTE337;
-	ch->smpte337.framesWritten++;
+	sdiaudio_channel_setType(ch, AUDIO_TYPE_SMPTE337);
+	sdiaudio_channel_statsUpdate(ch);
 
 	/* SMPTE 337 Discovery alert. */
 
@@ -158,36 +210,63 @@ int ltnsdi_audio_channels_write(struct ltnsdi_context_s *ctx, uint8_t *buf,
 				channelsPerFrame, frameStrideBytes, 1);
 		}
 
-		if (ch->type == AUDIO_TYPE_SMPTE337)
+		if (sdiaudio_channel_getType(ch) == AUDIO_TYPE_SMPTE337)
 			continue;
 
-		ch->pcm.samplesWritten += audioFrames;
-
 		/* Now process the payload as if its PCM. */
+
+		/* De-interleave the sample. */
 		uint32_t largestSample = 0;
 		uint8_t *dat = demuxChannelWords(ctx, buf, audioFrames, sampleDepth, channelsPerFrame, frameStrideBytes, i, &largestSample);
 		if (!dat)
 			continue;
 
+		/* Convert from stream specific format into LE */
 		largestSample = be_u32(largestSample);
-		int bits = 0;
-		for (int z = 31; z > 0; z--) {
-			if (largestSample & (1 << z)) {
-				bits = z;
-				break;
-			}
+		if (largestSample == 0) {
+			/* No actual data, flag this sample as unused. */
+			sdiaudio_channel_setType(ch, AUDIO_TYPE_UNUSED);
+			sdiaudio_channel_statsUpdate(ch);
+			ch->wordLength = 0;
+		} else {
+			sdiaudio_channel_setType(ch, AUDIO_TYPE_PCM);
+			sdiaudio_channel_statsUpdate(ch);
 		}
 
-		/* Lets scan the channel, see if our samples are 16, 20 or 24 bit constrained. */
-		double x = largestSample;
-		if (bits <= 15) {
-			/* 16 bit */
-			ch->pcm.dbFS = 20 * log10( x / 32767.0);
-		} else
-		if (largestSample <= (1 << 23)) {
-			/* 24bit */
-			ch->pcm.dbFS = 20 * log10( x / 8388607.0);
-		}
+		if (sdiaudio_channel_getType(ch) == AUDIO_TYPE_PCM) {
+			/* We don't know if these PCM samples ar 16/20/24/32 but, calculate the  size in bitwidth.  */
+			/* Lets scan the channel, see if our samples are 16, 20 or 24 bit constrained. */
+			int bits = 0;
+			for (int z = 31; z > 0; z--) {
+				if (largestSample & (1 << z)) {
+					bits = z;
+					break;
+				}
+			}
+			ch->wordLength = bits;
+
+			/* Generate a dbFS measurement. Where maximum power is 0dbFS, and minimum is -90dbFS. */
+			double x = largestSample;
+			if (bits <= 15) {
+				/* 16 bit */
+				ch->pcm.dbFS = 20 * log10( x / 32767.0);
+			} else
+			if (largestSample <= 19) {
+				/* TODO: Test this. */
+				/* 20bit */
+				ch->pcm.dbFS = 20 * log10( x / 524287.0);
+			} else
+			if (largestSample <= 23) {
+				/* TODO: Test this. */
+				/* 24bit */
+				ch->pcm.dbFS = 20 * log10( x / 8388607.0);
+			} else
+			if (largestSample <= 31) {
+				/* TODO: Test this. */
+				/* 32bit */
+				ch->pcm.dbFS = 20 * log10( x / 2147483647.0);
+			}
+		} /* If ch == PCM */
 
 //		printf("g%dc%d: %.03fdbFS largest: %08x\n", ch->groupNr, ch->channelNr, ch->pcm.dbFS, largestSample);
 
@@ -223,7 +302,7 @@ int sdiaudio_channels_alloc(struct sdiaudio_channels_s **ctx)
 				ch->pairedChannel = &o->ch[ (g * SDI_AUDIO_GROUPS) + c - 1 ];
 
 			ch->userContext = NULL;
-			ch->type = AUDIO_TYPE_UNDEFINED;
+			sdiaudio_channel_setType(ch, AUDIO_TYPE_UNDEFINED);
 			ch->wordLength = 0;
 
 			/* PCM */
@@ -261,4 +340,117 @@ void sdiaudio_channels_free(struct sdiaudio_channels_s *ctx)
 
 	/* Intensionally leave the mutex locked. */
 	free(ctx);
+}
+
+#if 0
+struct ltnsdi_status_s
+{
+        struct {
+                /* 1 = PCM
+ *                  * 2 = SMPTE 337
+ *                                   * 3 = UNUSED
+ *                                                    */
+                uint32_t   type;
+                const char typeDescription[16];
+                struct timeval typeUpdated;
+                const char     typeUpdatedDescription[32];
+
+                uint64_t       buffersProcessed;
+                struct timeval lastBufferArrival;
+                const char     lastBufferArrivalDescription[32];
+                const char     lastBufferPayloadHeader[32];
+
+                /* PCM */
+                double     pcm_dbFS;
+                const char pcm_dbFSDescription[8];
+
+                /* SMPTE 337 */
+                uint32_t   smpte337_dataMode;
+                uint32_t   smpte337_dataType;
+                const char smpte337_dataTypeDescription[64];
+
+        } channels[16];
+};
+#endif
+
+static void createDateString(time_t n, char *dst)
+{
+	struct tm x;
+	localtime_r(&n, &x);
+	sprintf(dst, "%02d/%02d/%04d %02d:%02d:%02d",
+		x.tm_mon + 1,
+		x.tm_mday,
+		x.tm_year + 1900,
+		x.tm_hour,
+		x.tm_min,
+		x.tm_sec);
+}
+
+int ltnsdi_status_alloc(struct ltnsdi_context_s *ctx, struct ltnsdi_status_s **status)
+{
+	struct ltnsdi_status_s *s = calloc(1, sizeof(*s));
+	if (!s)
+		return -1;
+
+	struct sdiaudio_channels_s *channels = getChannels(ctx);
+
+	pthread_mutex_lock(&channels->mutex);
+	for (int i = 0; i < MAXSDI_AUDIO_CHANNELS; i++) {
+		struct sdiaudio_channel_s *ch = &channels->ch[i];
+
+		s->channels[i].groupNumber = ch->groupNr;
+		s->channels[i].channelNumber = ch->channelNr;
+		s->channels[i].wordLength = ch->wordLength;
+
+		switch (sdiaudio_channel_getType(ch)) {
+		case AUDIO_TYPE_PCM:
+			s->channels[i].type = 1;
+			s->channels[i].buffersProcessed = ch->pcm.samplesWritten;
+			s->channels[i].lastBufferArrival = ch->pcm.last_update;
+			s->channels[i].pcm_dbFS = ch->pcm.dbFS;
+			sprintf((char *)s->channels[i].pcm_dbFSDescription, "%04.02f", ch->pcm.dbFS);
+			break;
+		case AUDIO_TYPE_SMPTE337:
+			s->channels[i].buffersProcessed = ch->smpte337.framesWritten;
+			s->channels[i].lastBufferArrival = ch->smpte337.last_update;
+			s->channels[i].type = 2;
+			s->channels[i].smpte337_dataMode = ch->smpte337.dataType;
+			s->channels[i].smpte337_dataType = ch->smpte337.dataMode;
+			strncpy((char *)s->channels[i].smpte337_dataTypeDescription,
+				smpte338_lookupDataTypeDescription(ch->smpte337.dataType),
+				sizeof(s->channels[i].smpte337_dataTypeDescription));
+			break;
+		default:
+		case AUDIO_TYPE_UNUSED:
+			s->channels[i].buffersProcessed = ch->unused.unusedSampleCount;
+			s->channels[i].lastBufferArrival = ch->unused.last_update;
+			s->channels[i].type = 3;
+			break;
+		}
+		createDateString(s->channels[i].lastBufferArrival.tv_sec, (char *)s->channels[i].lastBufferArrivalDescription);
+
+		strncpy((char *)s->channels[i].typeDescription, sdiaudio_channel_type_name(sdiaudio_channel_getType(ch)), sizeof(s->channels[i].typeDescription));
+		s->channels[i].typeUpdated = ch->type_last_update; /* Implicit struct copy. */
+
+		createDateString(s->channels[i].typeUpdated.tv_sec, (char *)s->channels[i].typeUpdatedDescription);
+
+		/* Payload header */
+		{
+			/* TODO, get this from the channel. */
+			uint8_t dat[8] = { 1, 2, 3, 4, 5, 6, 7, 8 };
+			for (int x = 0; x < 8; x++) {
+				sprintf((char *)s->channels[i].lastBufferPayloadHeader + strlen(s->channels[i].lastBufferPayloadHeader), "%02x ",
+					dat[x]);
+			}
+		}
+	}
+	pthread_mutex_unlock(&channels->mutex);
+
+	*status = s;
+	return 0; /* Success */
+}
+
+void ltnsdi_status_free(struct ltnsdi_context_s *ctx, struct ltnsdi_status_s *status)
+{
+	free(status);
 }

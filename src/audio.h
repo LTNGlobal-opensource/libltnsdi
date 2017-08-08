@@ -38,6 +38,7 @@
 #include <stdint.h>
 #include <pthread.h>
 #include <libltnsdi/ltnsdi.h>
+#include <sys/time.h>
 
 #include "ltnsdi-private.h"
 
@@ -67,16 +68,28 @@ struct sdiaudio_channel_s
 	void *userContext;
 
 	enum sdiaudio_channel_type_e type;
+	struct timeval type_last_update;
+
+	/* Statistics */
 	struct {
 		struct smpte337_detector_s *detector;
 		uint64_t framesWritten;
+		struct timeval last_update;
+		uint32_t dataType;
+		uint32_t dataMode;
 	} smpte337;
 	struct {
 		uint64_t samplesWritten;
 		uint32_t sampleRateHz; /* Eg. 48000, 44100 */
 		/* dbFS for the first sample in the last buffer. 0dbFS maximum volume, -90dbFS basically silence. */
 		double dbFS;
+		struct timeval last_update;
 	} pcm;
+	struct {
+		uint64_t unusedSampleCount;
+		struct timeval last_update;
+	} unused;
+	/* End: Statistics */
 
 	uint32_t wordLength;	/* 0 (Unset), 16, 20 or 24. */
 	struct sdiaudio_channel_s *pairedChannel;

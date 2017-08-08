@@ -36,6 +36,7 @@
 
 #include <stdint.h>
 #include <sys/errno.h>
+#include <sys/time.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -47,6 +48,8 @@ typedef void (*ltnsdi_callback_smpte337_discovery)(void *userContext, struct ltn
 typedef void (*ltnsdi_callback_smpte337_removal)(void *userContext, struct ltnsdi_context_s *ctx, uint32_t groupNr, uint32_t channelNr);
 typedef void (*ltnsdi_callback_pcm_discovery)(void *userContext, struct ltnsdi_context_s *ctx, uint32_t groupNr, uint32_t channelNr);
 typedef void (*ltnsdi_callback_pcm_removal)(void *userContext, struct ltnsdi_context_s *ctx, uint32_t groupNr, uint32_t channelNr);
+typedef void (*ltnsdi_callback_unused_discovery)(void *userContext, struct ltnsdi_context_s *ctx, uint32_t groupNr, uint32_t channelNr);
+typedef void (*ltnsdi_callback_unused_removal)(void *userContext, struct ltnsdi_context_s *ctx, uint32_t groupNr, uint32_t channelNr);
 
 struct ltnsdi_context_callbacks_s
 {
@@ -54,6 +57,8 @@ struct ltnsdi_context_callbacks_s
 	ltnsdi_callback_smpte337_removal   smpte337_removal;
 	ltnsdi_callback_pcm_discovery      pcm_discovery;
 	ltnsdi_callback_pcm_removal        pcm_removal;
+	ltnsdi_callback_unused_discovery   unused_discovery;
+	ltnsdi_callback_unused_removal     unused_removal;
 };
 
 struct ltnsdi_context_s
@@ -88,6 +93,51 @@ void ltnsdi_context_free(struct ltnsdi_context_s *ctx);
  * */
 int ltnsdi_audio_channels_write(struct ltnsdi_context_s *ctx, uint8_t *buf,
         uint32_t audioFrames, uint32_t sampleDepth, uint32_t channelsPerFrame, uint32_t frameStrideBytes);
+
+struct ltnsdi_status_s
+{
+	struct {
+		uint32_t groupNumber;
+		uint32_t channelNumber;
+		uint32_t wordLength;
+
+		/* 1 = PCM
+		 * 2 = SMPTE 337
+		 * 3 = UNUSED
+		 */
+		uint32_t   type;
+		const char typeDescription[16];
+		struct timeval typeUpdated;
+		const char     typeUpdatedDescription[32];
+
+		uint64_t       buffersProcessed;
+		struct timeval lastBufferArrival;
+		const char     lastBufferArrivalDescription[32];
+		const char     lastBufferPayloadHeader[64];
+
+		/* PCM */
+		double     pcm_dbFS;
+		const char pcm_dbFSDescription[8];
+
+		/* SMPTE 337 */
+		uint32_t   smpte337_dataMode;
+		uint32_t   smpte337_dataType;
+		const char smpte337_dataTypeDescription[64];
+
+	} channels[16];
+};
+
+/**
+ * @brief	Query the SDi context for a breakdown of overall status.\n
+ *              The caller MUST free the returned status reporte.
+ * @param[in]	struct ltnsdi_context_s *ctx - Context.
+ * @param[out]	struct ltnsdi_status_s **status - Status report..
+ * @return      0 - Success
+ * @return      < 0 - Error
+ */
+int ltnsdi_status_alloc(struct ltnsdi_context_s *ctx, struct ltnsdi_status_s **status);
+
+void ltnsdi_status_free(struct ltnsdi_context_s *ctx, struct ltnsdi_status_s *status);
 
 #ifdef __cplusplus
 };

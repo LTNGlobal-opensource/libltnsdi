@@ -138,7 +138,7 @@ static void cursor_up()
 {
 }
 
-static void vanc_monitor_stats_dump_curses()
+static void sdi_monitor_stats_dump_curses()
 {
 	int linecount = 0;
 	int headLineColor = 1;
@@ -219,8 +219,41 @@ static void vanc_monitor_stats_dump_curses()
         attroff(COLOR_PAIR(1));
 }
 
-static void vanc_monitor_stats_dump()
+static void sdi_monitor_stats_dump()
 {
+	int ret;
+
+	if (!g_sdi_ctx)
+		return;
+
+	struct ltnsdi_status_s *status;
+	ret = ltnsdi_status_alloc(g_sdi_ctx, &status);
+	if (ret < 0)
+		return;
+
+	printf("\n");
+	printf("Group  Channel  Len           \n");
+	printf("   Nr       Nr  bit Type           Description   Buffers  LastBuffer           Payload                  dbFS  Mode Type Description\n");
+	for (int i = 0; i < 16; i++) {
+		printf("    %d        %d   %2d 0x%02x  %20s  %8" PRIu64 "  %s  %s %s %d %d %s\n",
+			status->channels[i].groupNumber,
+			status->channels[i].channelNumber,
+			status->channels[i].wordLength,
+			status->channels[i].type,
+			status->channels[i].typeDescription,
+			status->channels[i].buffersProcessed,
+			status->channels[i].lastBufferArrivalDescription,
+			status->channels[i].lastBufferPayloadHeader,
+			status->channels[i].pcm_dbFSDescription,
+			status->channels[i].smpte337_dataMode,
+			status->channels[i].smpte337_dataType,
+			status->channels[i].smpte337_dataTypeDescription);
+
+		if (status->channels[i].channelNumber == 3)
+			printf("\n");
+	}
+
+	ltnsdi_status_free(g_sdi_ctx, status);
 }
 
 static void signal_handler(int signum);
@@ -283,7 +316,7 @@ static void *thread_func_draw(void *p)
 		}
 
 		clear();
-                vanc_monitor_stats_dump_curses();
+                sdi_monitor_stats_dump_curses();
 
 		refresh();
 		usleep(100 * 1000);
@@ -693,7 +726,7 @@ static int _main(int argc, char *argv[])
 	}
 
 #if HAVE_CURSES_H
-	vanc_monitor_stats_dump();
+	sdi_monitor_stats_dump();
 #endif
 
 #if HAVE_CURSES_H

@@ -34,6 +34,27 @@
 
 #include "ltnsdi-private.h"
 
+__inline__ uint32_t be_u32(uint32_t n)
+{
+#if G_BYTE_ORDER == G_LITTLE_ENDIAN 
+    return (n & 0xff000000 >> 24) | (n & 0x00ff0000 >> 8) | (n & 0x0000ff00 << 8) | (n << 24);
+#elif G_BYTE_ORDER == G_BIG_ENDIAN
+    return n;
+#else
+#error "G_BYTE_ORDER should be big or little endian."
+#endif
+}
+
+static const char *sdiaudio_channel_type_name(enum sdiaudio_channel_type_e e)
+{
+	switch (e) {
+	case AUDIO_TYPE_UNDEFINED: return "UNDEFINED";
+	case AUDIO_TYPE_SMPTE337:  return "SMPTE337";
+	case AUDIO_TYPE_PCM:       return "PCM";
+	case AUDIO_TYPE_UNUSED:    return "UNUSED";
+	}
+};
+
 static uint8_t *demuxChannelWords(struct ltnsdi_context_s *ctx, uint8_t *buf,
         uint32_t audioFrames, uint32_t sampleDepth, uint32_t channelsPerFrame, uint32_t frameStrideBytes, int channelIndex,
 	uint32_t *largestSample)

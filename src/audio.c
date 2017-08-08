@@ -169,12 +169,7 @@ int ltnsdi_audio_channels_write(struct ltnsdi_context_s *ctx, uint8_t *buf,
 		if (!dat)
 			continue;
 
-		uint32_t z = 
-			((largestSample & 0xff000000) >> 24) |
-			((largestSample & 0x00ff0000) >>  8) |
-			((largestSample & 0x0000ff00) <<  8) |
-			((largestSample & 0x000000ff) << 24);
-		largestSample = z;
+		largestSample = be_u32(largestSample);
 		int bits = 0;
 		for (int z = 31; z > 0; z--) {
 			if (largestSample & (1 << z)) {

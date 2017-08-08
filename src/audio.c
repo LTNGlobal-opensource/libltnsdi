@@ -64,6 +64,7 @@ static uint8_t *demuxChannelWords(struct ltnsdi_context_s *ctx, uint8_t *buf,
 	}
 
 	if (sampleDepth == 16) {
+// TODO: requires testing. */
 		uint32_t step = (frameStrideBytes / sizeof(uint16_t)) - 1;
 		uint32_t *b = malloc(audioFrames * sizeof(uint32_t));
 		uint32_t *dst = b;

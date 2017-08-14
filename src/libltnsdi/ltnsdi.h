@@ -44,6 +44,7 @@ extern "C" {
 
 struct ltnsdi_context_s;
 
+#if 0
 typedef void (*ltnsdi_callback_smpte337_discovery)(void *userContext, struct ltnsdi_context_s *ctx, uint32_t groupNr, uint32_t channelNr); 
 typedef void (*ltnsdi_callback_smpte337_removal)(void *userContext, struct ltnsdi_context_s *ctx, uint32_t groupNr, uint32_t channelNr);
 typedef void (*ltnsdi_callback_pcm_discovery)(void *userContext, struct ltnsdi_context_s *ctx, uint32_t groupNr, uint32_t channelNr);
@@ -60,6 +61,7 @@ struct ltnsdi_context_callbacks_s
 	ltnsdi_callback_unused_discovery   unused_discovery;
 	ltnsdi_callback_unused_removal     unused_removal;
 };
+#endif
 
 struct ltnsdi_context_s
 {
@@ -67,9 +69,10 @@ struct ltnsdi_context_s
 	int   verbose;
 	void *callbackContext;
 	void *priv;
-
+#if 0
 	/* Callbacks */
 	struct ltnsdi_context_callbacks_s cb;
+#endif
 };
 
 /**

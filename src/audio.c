@@ -409,6 +409,7 @@ int ltnsdi_status_alloc(struct ltnsdi_context_s *ctx, struct ltnsdi_status_s **s
 			s->channels[i].lastBufferArrival = ch->pcm.last_update;
 			s->channels[i].pcm_dbFS = ch->pcm.dbFS;
 			sprintf((char *)s->channels[i].pcm_dbFSDescription, "%04.02f", ch->pcm.dbFS);
+			sprintf((char *)s->channels[i].smpte337_dataTypeDescription, "N/A");
 			break;
 		case AUDIO_TYPE_SMPTE337:
 			s->channels[i].buffersProcessed = ch->smpte337.framesWritten;

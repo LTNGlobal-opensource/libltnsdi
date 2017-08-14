@@ -70,6 +70,11 @@ struct sdiaudio_channel_s
 	enum sdiaudio_channel_type_e type;
 	struct timeval type_last_update;
 
+	/* Bitrate PS */
+	uint64_t bitsPsCurrent;
+	uint64_t bitsNow;
+	time_t   bitsNowTime;
+
 	/* Statistics */
 	struct {
 		struct smpte337_detector_s *detector;

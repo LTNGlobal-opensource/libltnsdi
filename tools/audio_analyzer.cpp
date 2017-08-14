@@ -169,11 +169,67 @@ static void sdi_monitor_stats_dump_curses()
         attroff(COLOR_PAIR(headLineColor));
 
 	attron(COLOR_PAIR(6));
-	mvprintw(linecount++, 0, "               Sample");
-	mvprintw(linecount++, 0, "Group  Channel  Width  Payload Description   Type  Name           Bitrate/ps  Last Update     Codec Payload 1..9 Bytes    Status");
+	mvprintw(linecount++, 0, "Grp  Ch  Width  Payload                                    Bitrate                          Payload  ");
+	mvprintw(linecount++, 0, " Nr  Nr    Bit  Description        Type  Name              Kb p/s    Last Update            Buffers  Status");
 	attroff(COLOR_PAIR(6));
 
-	linecount++;
+	struct ltnsdi_status_s *status;
+	if (ltnsdi_status_alloc(g_sdi_ctx, &status) < 0) {
+		return;
+	}
+
+#if 0
+	printf("\n");
+	printf("Group  Channel  Len           \n");
+	printf("   Nr       Nr  bit Type           Description   Buffers  LastBuffer           Payload                  dbFS  Mode Type Description\n");
+	for (int i = 0; i < 16; i++) {
+		printf("    %d        %d   %2d 0x%02x  %20s  %8" PRIu64 "  %s  %s %s     %d    %d %s %s\n",
+			status->channels[i].groupNumber,
+			status->channels[i].channelNumber,
+			status->channels[i].wordLength,
+			status->channels[i].type,
+			status->channels[i].typeDescription,
+			status->channels[i].buffersProcessed,
+			status->channels[i].lastBufferArrivalDescription,
+			status->channels[i].lastBufferPayloadHeader,
+			status->channels[i].pcm_dbFSDescription,
+			status->channels[i].smpte337_dataMode,
+			status->channels[i].smpte337_dataType,
+			status->channels[i].smpte337_dataTypeDescription,
+			"-");
+
+		if (status->channels[i].channelNumber == 3)
+			printf("\n");
+	}
+#endif
+	for (int i = 0; i < 16; i++) {
+		if (status->channels[i].channelNumber == 0)
+			linecount++;
+
+		char statustxt[20];
+		if (status->channels[i].type == 1) {
+			sprintf(statustxt, "%s (dbFS) %d (Hz)",
+				status->channels[i].pcm_dbFSDescription,
+				status->channels[i].pcm_Hz);
+		} else {
+			sprintf(statustxt, "-");
+		}
+
+		mvprintw(linecount++, 0, "  %d   %d     %2d  %-18s 0x%02x  %-18s%-9s %-19s  %9d  %s",
+			status->channels[i].groupNumber,
+			status->channels[i].channelNumber,
+			status->channels[i].wordLength,
+			status->channels[i].typeDescription,
+			status->channels[i].type,
+			status->channels[i].type == 1 ? status->channels[i].pcm_channelDescription : 
+			status->channels[i].type == 2 ? status->channels[i].smpte337_dataTypeDescription : 
+			status->channels[i].type == 3 ? "-" : "Undefined",
+			status->channels[i].bitratePsDescriptionKb,
+			status->channels[i].lastBufferArrivalDescription,
+			status->channels[i].buffersProcessed,
+			statustxt);
+
+#if 0
 	mvprintw(linecount++, 0, "    1  0: DIGITAL  24  SMPTE 337             0x03  A/52 Audio     384kb       08-03 17:23:58  FC 1B 08 21 39 22 18 17 21  OK");
 	mvprintw(linecount++, 0, "    1  1: DIGITAL  20  SMPTE 337             0x03  A/52 Audio     192kb       08-03 17:23:56  FC 1B 08 21 39 22 16 03 41  OK");
 	mvprintw(linecount++, 0, "    1  2: DIGITAL  16  SMPTE 337             0x07  AAC Part 4     192kb       08-03 17:22:31  FF FB 08 09 C1 80 80 91 18  Missing Payload");
@@ -196,10 +252,14 @@ static void sdi_monitor_stats_dump_curses()
 	mvprintw(linecount++, 0, "    4  1: UNUSED");
 	mvprintw(linecount++, 0, "    4  2: UNUSED");
 	mvprintw(linecount++, 0, "    4  3: UNUSED");
+#endif
+	}
+	ltnsdi_status_free(g_sdi_ctx, status);
 
 	linecount++;
 	attron(COLOR_PAIR(2));
-        mvprintw(linecount++, 0, "q)uit r)eset e)xpand E)xpand all");
+        //mvprintw(linecount++, 0, "q)uit r)eset e)xpand E)xpand all");
+        mvprintw(linecount++, 0, "q)uit");
 	attroff(COLOR_PAIR(2));
 
 	char tail_c[160];

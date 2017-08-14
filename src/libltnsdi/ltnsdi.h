@@ -114,10 +114,14 @@ struct ltnsdi_status_s
 		struct timeval lastBufferArrival;
 		const char     lastBufferArrivalDescription[32];
 		const char     lastBufferPayloadHeader[64];
+		double         bitratePs;
+		const char     bitratePsDescriptionKb[16];
 
 		/* PCM */
 		double     pcm_dbFS;
 		const char pcm_dbFSDescription[8];
+		const char pcm_channelDescription[32];
+		uint64_t   pcm_Hz;
 
 		/* SMPTE 337 */
 		uint32_t   smpte337_dataMode;

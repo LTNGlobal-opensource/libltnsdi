@@ -108,6 +108,7 @@ static int g_monitor_mode = 0;
 static int g_no_signal = 1;
 static BMDDisplayMode g_detected_mode_id = 0;
 static BMDDisplayMode g_requested_mode_id = 0;
+static char g_hostname[64] = { 0 };
 
 static unsigned long audioFrameCount = 0;
 static struct frameTime_s {
@@ -267,7 +268,7 @@ static void sdi_monitor_stats_dump_curses()
 	sprintf(tail_c, "%s", ctime(&now));
 
 	char tail_a[160];
-	sprintf(tail_a, "LTNSDI_AUDIO_ANALYZER");
+	sprintf(tail_a, "LTNSDI_AUDIO_ANALYZER (%s)", g_hostname);
 
 	char tail_b[160];
 	blen = (WIDE - 4) - (strlen(tail_a) + strlen(tail_c));
@@ -292,6 +293,7 @@ static void sdi_monitor_stats_dump()
 		return;
 
 	printf("\n");
+	printf("LTNSDI_AUDIO_ANALYZER (%s)\n", g_hostname);
 	printf("Group  Channel  Len           \n");
 	printf("   Nr       Nr  bit Type           Description   Buffers  LastBuffer           Payload                  dbFS  Mode Type Description\n");
 	for (int i = 0; i < 16; i++) {
@@ -659,6 +661,8 @@ static int _main(int argc, char *argv[])
 		usage(argv[0], 0);
 		goto bail;
 	}
+
+	gethostname(g_hostname, sizeof(g_hostname));
 
 	if (!deckLinkIterator) {
 		fprintf(stderr, "This application requires the DeckLink drivers installed.\n");

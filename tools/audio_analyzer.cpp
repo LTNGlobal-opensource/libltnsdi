@@ -786,13 +786,10 @@ static int _main(int argc, char *argv[])
 	}
 
 #if HAVE_CURSES_H
-	sdi_monitor_stats_dump();
-#endif
-
-#if HAVE_CURSES_H
 	if (g_monitor_mode)
 		endwin();
 #endif
+	sdi_monitor_stats_dump();
 
 bail:
 	if (g_sdi_ctx)

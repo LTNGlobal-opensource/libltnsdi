@@ -256,14 +256,14 @@ int ltnsdi_audio_channels_write(struct ltnsdi_context_s *ctx, uint8_t *buf,
 		if (sdiaudio_channel_getType(ch) != AUDIO_TYPE_UNUSED) {
 
 			if (sdiaudio_channel_getType(ch) == AUDIO_TYPE_SMPTE337) {
-				if (tv.tv_sec > ch->smpte337.last_update.tv_sec + 2) {
+				if (tv.tv_sec >= ch->smpte337.last_update.tv_sec + 2) {
 					sdiaudio_channel_setType(ch, AUDIO_TYPE_UNUSED);
 					ch->wordLength = 0;
 					continue;
 				}
 			} else
 			if (sdiaudio_channel_getType(ch) == AUDIO_TYPE_PCM) {
-				if (tv.tv_sec > ch->pcm.last_update.tv_sec + 2) {
+				if (tv.tv_sec >= ch->pcm.last_update.tv_sec + 2) {
 					sdiaudio_channel_setType(ch, AUDIO_TYPE_UNUSED);
 					ch->wordLength = 0;
 					continue;
@@ -294,7 +294,7 @@ int ltnsdi_audio_channels_write(struct ltnsdi_context_s *ctx, uint8_t *buf,
 			if (sdiaudio_channel_getType(ch) == AUDIO_TYPE_PCM) {
 				ch->pcm.emptyBufferCount++;
 
-				if (ch->pcm.emptyBufferCount > 32) {
+				if (ch->pcm.emptyBufferCount > 128) {
 					/* No actual data, flag this sample as unused. */
 					sdiaudio_channel_setType(ch, AUDIO_TYPE_UNUSED);
 					sdiaudio_channel_statsUpdate(ch);

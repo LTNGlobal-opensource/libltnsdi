@@ -235,7 +235,7 @@ static void sdi_monitor_stats_dump()
 	printf("Group  Channel  Len           \n");
 	printf("   Nr       Nr  bit Type           Description   Buffers  LastBuffer           Payload                  dbFS  Mode Type Description\n");
 	for (int i = 0; i < 16; i++) {
-		printf("    %d        %d   %2d 0x%02x  %20s  %8" PRIu64 "  %s  %s %s %d %d %s\n",
+		printf("    %d        %d   %2d 0x%02x  %20s  %8" PRIu64 "  %s  %s %s     %d    %d %s\n",
 			status->channels[i].groupNumber,
 			status->channels[i].channelNumber,
 			status->channels[i].wordLength,

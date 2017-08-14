@@ -31,6 +31,7 @@ struct smpte337_detector_s *smpte337_detector_alloc(smpte337_detector_callback c
 	if (!ctx)
 		return NULL;
 
+	ctx->spanCount = 1;
 	ctx->cb = cb;
 	ctx->cbContext = cbContext;
 	ctx->rb = rb_new_threadsafe(32 * 1024, 256 * 1024);
@@ -145,27 +146,71 @@ static size_t smpte337_detector_write_32b(struct smpte337_detector_s *ctx, uint8
 static int smpte337_detector_hunt_syncwords(struct smpte337_detector_s *ctx, uint8_t *buf,
 	uint32_t audioFrames, uint32_t sampleDepth, uint32_t channelsPerFrame,
 	uint32_t frameStrideBytes,
-	uint32_t spanCount)
+	uint32_t spanCount, uint32_t *actualSpanCount)
 {
-	uint32_t *p = (uint32_t *)buf;
-	for (int i = 0; i < audioFrames - 1; i++) {
+	if (spanCount == 1) {
+		uint32_t *p = (uint32_t *)buf;
+		for (int i = 0; i < audioFrames - 1; i++) {
 
-		uint32_t Pa = *p;
-		uint32_t Pb = *(p + (frameStrideBytes / sizeof(uint32_t)));
+/* Customer streams show the data spacs a single channel. */
+			uint32_t Pa = *p;
+			uint32_t Pb = *(p + (frameStrideBytes / sizeof(uint32_t)));
 
-//printf("Pa %08x / %08x\n", Pa, Pb);
-		if ((Pa == 0xf8720000) && (Pb == 0x4e1f0000)) {
-			return 16;
-		} else
-		if ((Pa == 0x6f872000) && (Pb == 0x54e1f000)) {
-			return 20;
-		} else
-		if ((Pa == 0x96f87200) && (Pb == 0xa54e1f00)) {
-			return 24;
+#if 0
+			if (Pa || Pb || Pn)
+				printf("Pa %08x / b:%08x / n:%08x\n", Pa, Pb, Pn);
+#endif
+
+			if ((Pa == 0xf8720000) && (Pb == 0x4e1f0000)) {
+				*actualSpanCount = 1;
+				return 16;
+			} else
+			if ((Pa == 0x6f872000) && (Pb == 0x54e1f000)) {
+				*actualSpanCount = 1;
+				return 20;
+			} else
+			if ((Pa == 0x96f87200) && (Pb == 0xa54e1f00)) {
+				*actualSpanCount = 1;
+				return 24;
+			}
+
+			p += (frameStrideBytes / sizeof(uint32_t));
 		}
-
-		p += (frameStrideBytes / sizeof(uint32_t));
 	}
+
+	spanCount++;
+	if (spanCount == 2) {
+/* MRD4400 outputs the bitstream across both channels. */
+/* Eg.. 00 00 72 f8 00 00 1f 4e */
+		uint32_t *p = (uint32_t *)buf;
+		for (int i = 0; i < audioFrames - 1; i++) {
+
+/* Customer streams show the data spacs a single channel. */
+			uint32_t Pa = *p;
+			uint32_t Pb = *(p + 1);
+
+#if 0
+			if (Pa || Pb)
+				printf("Pa %08x / b:%08x\n", Pa, Pb);
+#endif
+
+			if ((Pa == 0xf8720000) && (Pb == 0x4e1f0000)) {
+				*actualSpanCount = 2;
+				return 16;
+			} else
+			if ((Pa == 0x6f872000) && (Pb == 0x54e1f000)) {
+				*actualSpanCount = 2;
+				return 20;
+			} else
+			if ((Pa == 0x96f87200) && (Pb == 0xa54e1f00)) {
+				*actualSpanCount = 2;
+				return 24;
+			}
+
+			p += (frameStrideBytes / sizeof(uint32_t));
+		}
+	}
+
 	return 0;
 }
 
@@ -281,20 +326,21 @@ printf("bitcount = %d\n", payload_bitCount);
 
 size_t smpte337_detector_write(struct smpte337_detector_s *ctx, uint8_t *buf,
 	uint32_t audioFrames, uint32_t sampleDepth, uint32_t channelsPerFrame,
-	uint32_t frameStrideBytes, uint32_t spanCount)
+	uint32_t frameStrideBytes)
 {
 	if ((!buf) || (!audioFrames) || (!channelsPerFrame) || (!frameStrideBytes) ||
-		((sampleDepth != 16) && (sampleDepth != 32)) ||
-		(spanCount == 0) || (spanCount > channelsPerFrame)) {
+		((sampleDepth != 16) && (sampleDepth != 32))) {
 		return 0;
 	}
 
 	if (ctx->wordLength == 0) {
+		uint32_t asc = 0;
 		int ret = smpte337_detector_hunt_syncwords(ctx, buf, audioFrames, sampleDepth,
-			channelsPerFrame, frameStrideBytes, spanCount);
+			channelsPerFrame, frameStrideBytes, ctx->spanCount, &asc);
 		if (ret > 0) {
-			printf("Syncronized with %dbit words\n", ret);
 			ctx->wordLength = ret;
+			ctx->spanCount = asc;
+			printf("Syncronized with %dbit words, spancount = %d\n", ctx->wordLength, ctx->spanCount);
 		}
 	}
 
@@ -304,11 +350,11 @@ size_t smpte337_detector_write(struct smpte337_detector_s *ctx, uint8_t *buf,
 	size_t ret = 0;
 	if (sampleDepth == 16) {
 		ret = smpte337_detector_write_16b(ctx, buf, audioFrames, sampleDepth,
-			channelsPerFrame, frameStrideBytes, spanCount);
+			channelsPerFrame, frameStrideBytes, ctx->spanCount);
 	} else
 	if (sampleDepth == 32) {
 		ret = smpte337_detector_write_32b(ctx, buf, audioFrames, sampleDepth,
-			channelsPerFrame, frameStrideBytes, spanCount);
+			channelsPerFrame, frameStrideBytes, ctx->spanCount);
 	}
 
 	/* Now all the fifo contains byte stream re-ordered data, run the detector. */

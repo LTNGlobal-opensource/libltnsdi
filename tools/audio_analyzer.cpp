@@ -169,8 +169,8 @@ static void sdi_monitor_stats_dump_curses()
         attroff(COLOR_PAIR(headLineColor));
 
 	attron(COLOR_PAIR(6));
-	mvprintw(linecount++, 0, "Grp  Ch  Width  Payload                                    Bitrate                          Payload  ");
-	mvprintw(linecount++, 0, " Nr  Nr    Bit  Description        Type  Name              Kb p/s    Last Update            Buffers  Status");
+	mvprintw(linecount++, 0, "Grp  Ch  Width  Payload                                              Bitrate                          Payload  ");
+	mvprintw(linecount++, 0, " Nr  Nr    Bit  Description        Type  Name                        Kb p/s    Last Update            Buffers  Status");
 	attroff(COLOR_PAIR(6));
 
 	struct ltnsdi_status_s *status;
@@ -212,10 +212,10 @@ static void sdi_monitor_stats_dump_curses()
 				status->channels[i].pcm_dbFSDescription,
 				status->channels[i].pcm_Hz);
 		} else {
-			sprintf(statustxt, "-");
+			sprintf(statustxt, "");
 		}
 
-		mvprintw(linecount++, 0, "  %d   %d     %2d  %-18s 0x%02x  %-18s%-9s %-19s  %9d  %s",
+		mvprintw(linecount++, 0, "  %d   %d     %2d  %-18s 0x%02x  %-28s%-9s %-19s  %9d  %s",
 			status->channels[i].groupNumber,
 			status->channels[i].channelNumber,
 			status->channels[i].wordLength,
@@ -379,7 +379,7 @@ static void *thread_func_draw(void *p)
                 sdi_monitor_stats_dump_curses();
 
 		refresh();
-		usleep(100 * 1000);
+		usleep(250 * 1000);
 	}
 
 	return 0;

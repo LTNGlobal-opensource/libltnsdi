@@ -89,6 +89,7 @@ struct sdiaudio_channel_s
 		/* dbFS for the first sample in the last buffer. 0dbFS maximum volume, -90dbFS basically silence. */
 		double dbFS;
 		struct timeval last_update;
+		uint32_t emptyBufferCount;
 	} pcm;
 	struct {
 		uint64_t unusedSampleCount;

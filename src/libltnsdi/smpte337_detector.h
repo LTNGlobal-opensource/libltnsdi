@@ -60,6 +60,7 @@ struct smpte337_detector_s
 	 * 24. Detected operating on 24bit words.
 	 */
 	uint32_t wordLength;
+	uint32_t spanCount;
 };
 
 struct smpte337_detector_s *smpte337_detector_alloc(smpte337_detector_callback cb, void *cbContext);
@@ -67,8 +68,7 @@ struct smpte337_detector_s *smpte337_detector_alloc(smpte337_detector_callback c
 void smpte337_detector_free(struct smpte337_detector_s *ctx);
 
 size_t smpte337_detector_write(struct smpte337_detector_s *ctx, uint8_t *buf,
-	uint32_t audioFrames, uint32_t sampleDepth, uint32_t channelsPerFrame, uint32_t frameStrideBytes,
-	uint32_t spanCount);
+	uint32_t audioFrames, uint32_t sampleDepth, uint32_t channelsPerFrame, uint32_t frameStrideBytes);
 
 #ifdef __cplusplus
 };

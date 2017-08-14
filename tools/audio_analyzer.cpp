@@ -587,7 +587,7 @@ static int usage(const char *progname, int status)
 #endif
 		"\n"
 		"Display and show audio related materials for a 1080i 59.94 stream:\n"
-		"    %s -m9 -p1 -M\n\n",
+		"    %s -m9 -M\n\n",
 		basename((char *)progname)
 		);
 

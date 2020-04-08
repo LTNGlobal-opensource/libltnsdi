@@ -31,6 +31,7 @@
 
 #define DATA_MODE_16BIT 0
 #define DATA_MODE_24BIT 2
+#if 0
 static void generate_smpte337_header(uint8_t *dst, uint16_t payloadLength, uint8_t dataType, uint8_t dataMode)
 {
 	if (dataMode == DATA_MODE_16BIT) {
@@ -191,6 +192,7 @@ static int test_24bitPayload_in_32bit_words_G1C0(struct ltnsdi_context_s *ctx)
 
 	return ret;
 }
+#endif
 
 static int test_16bitPCM_G1C0_G1C1(struct ltnsdi_context_s *ctx)
 {

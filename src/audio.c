@@ -137,12 +137,8 @@ static uint8_t *demuxChannelWords(struct ltnsdi_context_s *ctx, uint8_t *buf,
 	uint32_t *largestSample)
 {
 	*largestSample = 0;
-#if 0
-	printf("%s depth = %d -- ", __func__, sampleDepth);
-	for (int i = 0; i < 12; i++)
-		printf("%02x ", *(buf + i));
-	printf("\n");
-#endif
+	int16_t big = 0;
+	int16_t small = 0;
 
 	if (sampleDepth == 32) {
 		int step = (frameStrideBytes / sizeof(uint32_t));
@@ -150,15 +146,25 @@ static uint8_t *demuxChannelWords(struct ltnsdi_context_s *ctx, uint8_t *buf,
 		uint32_t *dst = b;
 		uint32_t *src = (uint32_t *)buf;
 		src += channelIndex;
-//printf("%s() 32 bit i = %d, step = %d\n", __func__, channelIndex, step);
 
 		for (int i = 0; i < audioFrames; i++) {
 			*dst = be_u32(*src);
-			if (*dst > *largestSample)
-				*largestSample = *dst;
+
+			int16_t x = *src >> 16;
+			int16_t val = (int16_t)x;
+
+			if (val > big)
+				big = val;
+			else
+			if (val < small)
+				small = val;
+
 			src += step;
 			dst++;
 		}
+
+		uint32_t maxSampleVariance = abs(small) + abs(big);
+		*largestSample = maxSampleVariance;
 		return (uint8_t *)b;
 	}
 

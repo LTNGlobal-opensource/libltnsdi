@@ -101,6 +101,8 @@ static IDeckLinkInput *deckLinkInput;
 static IDeckLinkDisplayModeIterator *displayModeIterator;
 
 static BMDTimecodeFormat g_timecodeFormat = 0;
+static uint32_t g_audioChannels = 16;
+static uint32_t g_audioSampleDepth = 32;
 static int g_videoModeIndex = -1;
 static int g_shutdown = 0;
 static int g_monitor_reset = 0;
@@ -209,9 +211,10 @@ static void sdi_monitor_stats_dump_curses()
 
 		char statustxt[20];
 		if (status->channels[i].type == 1) {
-			sprintf(statustxt, "%s (dbFS) %d (Hz)",
+			sprintf(statustxt, "%s (dbFS) %d (Hz) missing: %d",
 				status->channels[i].pcm_dbFSDescription,
-				status->channels[i].pcm_Hz);
+				status->channels[i].pcm_Hz,
+				status->channels[i].pcm_missingAudioCount);
 		} else {
 			sprintf(statustxt, "");
 		}
@@ -297,7 +300,7 @@ static void sdi_monitor_stats_dump()
 	printf("Group  Channel  Len           \n");
 	printf("   Nr       Nr  bit Type           Description   Buffers  LastBuffer           Payload                   dbFS  Mode Type Description\n");
 	for (int i = 0; i < 16; i++) {
-		printf("    %d        %d   %2d 0x%02x  %20s  %8" PRIu64 "  %s  %s %s     %d    %d %s\n",
+		printf("    %d        %d   %2d 0x%02x  %20s  %8" PRIu64 "  %s  %s %s     %d    %d %s  missing: %d\n",
 			status->channels[i].groupNumber,
 			status->channels[i].channelNumber,
 			status->channels[i].wordLength,
@@ -309,7 +312,8 @@ static void sdi_monitor_stats_dump()
 			status->channels[i].pcm_dbFSDescription,
 			status->channels[i].smpte337_dataMode,
 			status->channels[i].smpte337_dataType,
-			status->channels[i].smpte337_dataTypeDescription);
+			status->channels[i].smpte337_dataTypeDescription,
+			status->channels[i].pcm_missingAudioCount);
 
 		if (status->channels[i].channelNumber == 3)
 			printf("\n");
@@ -587,6 +591,12 @@ static int usage(const char *progname, int status)
 #if HAVE_CURSES_H
 		"    -M              Display an interractive UI.\n"
 #endif
+		"    -Z <1-16>       Enable PCM loss detection on a channel\n"
+		"    -z <number>     Couple with -Z, acceptible level of audio lost samples before reporting error, (def: 24)\n"
+		"                    Use 24 for CM5000 testing (720p59.94).\n"
+		"                    Use 48 for TestPattern testing (720p59.94).\n"
+		"                    Interlaced formats require higher values.\n"
+
 		"\n"
 		"Display and show audio related materials for a 1080i 59.94 stream:\n"
 		"    %s -m9 -M\n\n",
@@ -607,16 +617,19 @@ static int _main(int argc, char *argv[])
 	int displayModeCount = 0;
 	int exitStatus = 1;
 	int ch;
+	int v;
 	int portnr = 0;
 	bool foundDisplayMode = false;
 	bool wantHelp = false;
 	bool wantDisplayModes = false;
 	HRESULT result;
+	unsigned int analyzeBitmask = 0;
+	unsigned int audioLossLimit = 24;
 
 	pthread_mutex_init(&sleepMutex, NULL);
 	pthread_cond_init(&sleepCond, NULL);
 
-	while ((ch = getopt(argc, argv, "?h3c:s:f:a:m:n:p:t:vV:I:i:l:LP:MS")) != -1) {
+	while ((ch = getopt(argc, argv, "?h3c:s:f:a:m:n:p:t:vV:I:i:l:LP:MSZ:z:")) != -1) {
 		switch (ch) {
 		case 'm':
 			g_videoModeIndex = atoi(optarg);
@@ -650,6 +663,19 @@ static int _main(int argc, char *argv[])
 				fprintf(stderr, "Invalid argument: Pixel format %d is not valid", atoi(optarg));
 				goto bail;
 			}
+			break;
+		case 'Z':
+			v = atoi(optarg);
+			if (v < 1 || v > 16) {
+				fprintf(stderr, "Invalid argument for Z '%s': Valid values 1-16\n", optarg);
+				goto bail;
+			}
+			analyzeBitmask |= (1 << (v - 1));
+			break;
+		case 'z':
+			audioLossLimit = atoi(optarg);
+			if (audioLossLimit < 4)
+				audioLossLimit = 4;
 			break;
 		case '?':
 		case 'h':
@@ -754,6 +780,13 @@ static int _main(int argc, char *argv[])
 	if (ltnsdi_context_alloc(&g_sdi_ctx) < 0) {
 		fprintf(stderr, "Error allocating a general SDI context.\n");
 		goto bail;
+	}
+
+	for (int i = 0; i < 16; i++) {
+		if (analyzeBitmask & (1 << i)) {
+			ltnsdi_audio_channels_analyze_pcm_enable(g_sdi_ctx, i, 1);
+			ltnsdi_audio_channels_analyze_pcm_limit(g_sdi_ctx, i, audioLossLimit);
+		}
 	}
 
 	result = deckLinkInput->StartStreams();

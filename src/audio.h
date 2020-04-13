@@ -75,6 +75,10 @@ struct sdiaudio_channel_s
 	uint64_t bitsNow;
 	time_t   bitsNowTime;
 
+	/* Flag this channels as due for analysis */
+	unsigned int analyzePCM;
+	unsigned int audioPCMLossLimit;
+
 	/* Statistics */
 	struct {
 		struct smpte337_detector_s *detector;
@@ -90,6 +94,9 @@ struct sdiaudio_channel_s
 		double dbFS;
 		struct timeval last_update;
 		uint32_t emptyBufferCount;
+
+		uint64_t missingAudioCount;
+		int sequentialAudioSilence;
 	} pcm;
 	struct {
 		uint64_t unusedSampleCount;

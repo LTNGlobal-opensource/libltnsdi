@@ -239,6 +239,66 @@ static void *detector_callback(void *userContext,
 	return 0;
 }
 
+static void genericDumpAudioPayload(const uint8_t *data, int sampleFrameCount, int audioChannelCount, int audioSampleDepth)
+{
+	assert(audioChannelCount == 16);
+	assert(audioSampleDepth == 32);
+
+	uint32_t *p = (uint32_t *)data;
+
+	for (int s = 0; s < sampleFrameCount; s++) {
+		printf("%06d : ", s);
+		for (int i = 0; i < audioChannelCount; i++) {
+			printf("%08x ", *p);
+			p++;
+		}
+		printf("\n");
+	}
+	printf("\n\n");
+
+}
+
+static void checkForSilence(struct sdiaudio_channel_s *ch,
+	const uint8_t *data, int sampleFrameCount,
+	int channelNr, int audioChannelCount, int audioSampleDepth)
+{
+	assert(audioChannelCount == 16);
+	assert(audioSampleDepth == 32);
+
+	if (!data)
+		return;
+
+	uint32_t *p = (uint32_t *)data;
+	p += channelNr; /* Adjust the offset to the start of the channel we are inspecting */
+	int silence = 0;
+	//int lastSilenceIdx = -1;
+
+	for (int s = 0; s < sampleFrameCount; s++) {
+		uint32_t dw = *p;
+		if (dw == 0) {
+			//printf("silence at %d last %d\n", s, lastSilenceIdx);
+			silence++;
+			ch->pcm.sequentialAudioSilence++;
+		} else {
+			ch->pcm.sequentialAudioSilence = 0;
+		}
+		//printf("%08x\n", dw);
+
+		p += audioChannelCount;
+	}
+
+	if (silence > ch->audioPCMLossLimit) {
+		ch->pcm.missingAudioCount++;
+		time_t now;
+		time(&now);
+		printf("\n\nSilence detected on channel %d (count #%d limit #%d) @ %s\n",
+			channelNr, silence, ch->audioPCMLossLimit, ctime(&now));
+		if (channelNr == 0) {
+			genericDumpAudioPayload(data, sampleFrameCount, audioChannelCount, audioSampleDepth);
+		}
+	}
+}
+
 /* Write many channels at once to the internal channels.
  * The buffer is assumed to start with group 1 channel 0.
  * G1C0 | G1C1 | G1C2 | G1C3 | G2C0 | G2C1 | .... up to G4C3
@@ -256,6 +316,10 @@ int ltnsdi_audio_channels_write(struct ltnsdi_context_s *ctx, uint8_t *buf,
 
 	for (int i = 0; i < channelsPerFrame; i++) {
 		struct sdiaudio_channel_s *ch = &channels->ch[i];
+
+		if (ch->analyzePCM) {
+			checkForSilence(ch, (const uint8_t *)buf, audioFrames, i, channelsPerFrame, sampleDepth);
+		}
 
 		struct timeval tv;
 		gettimeofday(&tv, NULL);
@@ -387,6 +451,8 @@ int sdiaudio_channels_alloc(struct sdiaudio_channels_s **ctx)
 
 			ch->groupNr = g + 1;
 			ch->channelNr = c;
+			ch->analyzePCM = 0;
+			ch->audioPCMLossLimit = 24;
 
 			if (c == 0 || c == 2)
 				ch->pairedChannel = &o->ch[ (g * SDI_AUDIO_GROUPS) + c + 1 ];
@@ -510,6 +576,7 @@ int ltnsdi_status_alloc(struct ltnsdi_context_s *ctx, struct ltnsdi_status_s **s
 				sprintf((char *)s->channels[i].pcm_channelDescription, "Left");
 
 			s->channels[i].pcm_Hz = ch->bitsPsCurrent / ch->wordLength;
+			s->channels[i].pcm_missingAudioCount = ch->pcm.missingAudioCount;
 			break;
 		case AUDIO_TYPE_SMPTE337:
 			s->channels[i].buffersProcessed = ch->smpte337.framesWritten;
@@ -558,3 +625,39 @@ void ltnsdi_status_free(struct ltnsdi_context_s *ctx, struct ltnsdi_status_s *st
 {
 	free(status);
 }
+
+int ltnsdi_audio_channels_analyze_pcm_enable(struct ltnsdi_context_s *ctx, unsigned int channelNr, int truefalse)
+{
+	struct sdiaudio_channels_s *channels = getChannels(ctx);
+
+	if (channelNr > MAXSDI_AUDIO_CHANNELS)
+		return -1;
+
+	pthread_mutex_lock(&channels->mutex);
+
+	struct sdiaudio_channel_s *ch = &channels->ch[channelNr];
+	ch->analyzePCM = truefalse ? 1 : 0;
+
+	pthread_mutex_unlock(&channels->mutex);
+
+	return 0;
+}
+
+int ltnsdi_audio_channels_analyze_pcm_limit(struct ltnsdi_context_s *ctx, unsigned int channelNr, unsigned int limit)
+{
+	struct sdiaudio_channels_s *channels = getChannels(ctx);
+
+	if (channelNr > MAXSDI_AUDIO_CHANNELS)
+		return -1;
+
+	pthread_mutex_lock(&channels->mutex);
+
+	struct sdiaudio_channel_s *ch = &channels->ch[channelNr];
+	ch->audioPCMLossLimit = limit;
+
+	pthread_mutex_unlock(&channels->mutex);
+
+	return 0;
+}
+
+

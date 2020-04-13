@@ -97,6 +97,9 @@ void ltnsdi_context_free(struct ltnsdi_context_s *ctx);
 int ltnsdi_audio_channels_write(struct ltnsdi_context_s *ctx, uint8_t *buf,
         uint32_t audioFrames, uint32_t sampleDepth, uint32_t channelsPerFrame, uint32_t frameStrideBytes);
 
+int ltnsdi_audio_channels_analyze_pcm_enable(struct ltnsdi_context_s *ctx, unsigned int channelNr, int truefalse);
+int ltnsdi_audio_channels_analyze_pcm_limit(struct ltnsdi_context_s *ctx, unsigned int channelNr, unsigned int limit);
+
 struct ltnsdi_status_s
 {
 	struct {
@@ -125,6 +128,7 @@ struct ltnsdi_status_s
 		const char pcm_dbFSDescription[8];
 		const char pcm_channelDescription[32];
 		uint64_t   pcm_Hz;
+		uint64_t   pcm_missingAudioCount;
 
 		/* SMPTE 337 */
 		uint32_t   smpte337_dataMode;

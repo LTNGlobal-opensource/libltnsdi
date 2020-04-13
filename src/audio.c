@@ -660,4 +660,19 @@ int ltnsdi_audio_channels_analyze_pcm_limit(struct ltnsdi_context_s *ctx, unsign
 	return 0;
 }
 
+int ltnsdi_audio_channels_analyze_pcm_reset(struct ltnsdi_context_s *ctx)
+{
+	struct sdiaudio_channels_s *channels = getChannels(ctx);
 
+	pthread_mutex_lock(&channels->mutex);
+
+	for (int i = 0; i < MAXSDI_AUDIO_CHANNELS; i++) {
+		struct sdiaudio_channel_s *ch = &channels->ch[i];
+		ch->pcm.missingAudioCount = 0;
+		ch->pcm.sequentialAudioSilence = 0;
+	}
+
+	pthread_mutex_unlock(&channels->mutex);
+
+	return 0;
+}

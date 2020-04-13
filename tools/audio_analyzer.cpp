@@ -263,7 +263,7 @@ static void sdi_monitor_stats_dump_curses()
 	linecount++;
 	attron(COLOR_PAIR(2));
         //mvprintw(linecount++, 0, "q)uit r)eset e)xpand E)xpand all");
-        mvprintw(linecount++, 0, "q)uit");
+	mvprintw(linecount++, 0, "q)uit r)eset missing");
 	attroff(COLOR_PAIR(2));
 
 	char tail_c[160];
@@ -378,7 +378,7 @@ static void *thread_func_draw(void *p)
 	while (!g_shutdown) {
 		if (g_monitor_reset) {
 			g_monitor_reset = 0;
-                        //vanc_cache_reset(vanchdl);
+			ltnsdi_audio_channels_analyze_pcm_reset(g_sdi_ctx);
 		}
 
 		clear();

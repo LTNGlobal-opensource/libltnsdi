@@ -589,7 +589,7 @@ static int usage(const char *progname, int status)
 		"    -v              Increase level of verbosity (def: 0)\n"
 		"    -i <number>     Capture from input port (def: 0)\n"
 #if HAVE_CURSES_H
-		"    -M              Display an interractive UI.\n"
+		"    -M              Display an interactive UI.\n"
 #endif
 		"    -Z <1-16>       Enable PCM loss detection on a channel\n"
 		"    -z <number>     Couple with -Z, acceptible level of audio lost samples before reporting error, (def: 24)\n"

@@ -782,6 +782,11 @@ static int _main(int argc, char *argv[])
 		goto bail;
 	}
 
+	if (g_monitor_mode)
+		ltnsdi_audio_channels_analyze_pcm_console_dump(g_sdi_ctx, 0);
+	else
+		ltnsdi_audio_channels_analyze_pcm_console_dump(g_sdi_ctx, 1);
+
 	for (int i = 0; i < 16; i++) {
 		if (analyzeBitmask & (1 << i)) {
 			ltnsdi_audio_channels_analyze_pcm_enable(g_sdi_ctx, i, 1);

@@ -598,9 +598,11 @@ static int usage(const char *progname, int status)
 		"                    Interlaced formats require higher values.\n"
 
 		"\n"
-		"Display and show audio related materials for a 1080i 59.94 stream:\n"
-		"    %s -m9 -M\n\n",
-		basename((char *)progname)
+		"Useful examples (DUO2):\n"
+		"    -m11 -M              (1080i29.97) -- Display basic audio information for a specific format/rate\n"
+		"    -m14 -M -Z1 -Z2 -z48  (720p59.94) -- Check for PCM loss on audio channels 1/2, acceptible level of loss 48frames\n"
+		"    -m11 -M -Z1 -Z9 -z24 (1080i29.97) -- Check for PCM loss on audio channels 1/9, acceptible level of loss 24frames\n"
+		"\n"
 		);
 
 	exit(status);

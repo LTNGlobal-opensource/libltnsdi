@@ -394,8 +394,25 @@ static void *thread_func_draw(void *p)
 
 static void signal_handler(int signum)
 {
-	pthread_cond_signal(&sleepCond);
-	g_shutdown = 1;
+	if (signum == SIGUSR2) {
+		if (g_monitor_mode) {
+			g_monitor_reset = 1;
+		} else {
+                        g_monitor_reset = 0;
+			ltnsdi_audio_channels_analyze_pcm_reset(g_sdi_ctx);
+		}
+	} else
+	if (signum == SIGUSR1) {
+		if (!g_monitor_mode) {
+			time_t now;
+			time(&now);
+			printf("\n\nStatistics @ %s ", ctime(&now));
+			sdi_monitor_stats_dump();
+		}
+	} else {
+		pthread_cond_signal(&sleepCond);
+		g_shutdown = 1;
+	}
 }
 
 static void showMemory(FILE * fd)
@@ -603,6 +620,10 @@ static int usage(const char *progname, int status)
 		"    -m14 -M -Z1 -Z2 -z48  (720p59.94) -- Check for PCM loss on audio channels 1/2, acceptible level of loss 48frames\n"
 		"    -m11 -M -Z1 -Z9 -z24 (1080i29.97) -- Check for PCM loss on audio channels 1/9, acceptible level of loss 24frames\n"
 		"\n"
+		"Signals:\n"
+		"    SIGUSR1 -- When not in curses monitor mode, display the current stats to console\n"
+		"    SIGUSR2 -- Reset any missing audio packet counts.\n"
+		"\n"
 		);
 
 	exit(status);
@@ -803,6 +824,8 @@ static int _main(int argc, char *argv[])
 	}
 
 	signal(SIGINT, signal_handler);
+	signal(SIGUSR1, signal_handler); /* Console dump statistics on demand. */
+	signal(SIGUSR2, signal_handler); /* Reset missing audio counter */
 
 #if HAVE_CURSES_H
 	if (g_monitor_mode) {

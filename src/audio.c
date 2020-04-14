@@ -291,10 +291,12 @@ static void checkForSilence(struct sdiaudio_channel_s *ch,
 		ch->pcm.missingAudioCount++;
 		time_t now;
 		time(&now);
-		printf("\n\nSilence detected on channel %d (count #%d limit #%d) @ %s\n",
-			channelNr, silence, ch->audioPCMLossLimit, ctime(&now));
-		if (channelNr == 0) {
-			genericDumpAudioPayload(data, sampleFrameCount, audioChannelCount, audioSampleDepth);
+		if (ch->analyzePCMConsoleDump) {
+			printf("\n\nSilence detected on channel %d (count #%d limit #%d) @ %s\n",
+				channelNr, silence, ch->audioPCMLossLimit, ctime(&now));
+			if (channelNr == 0) {
+				genericDumpAudioPayload(data, sampleFrameCount, audioChannelCount, audioSampleDepth);
+			}
 		}
 	}
 }
@@ -453,6 +455,7 @@ int sdiaudio_channels_alloc(struct sdiaudio_channels_s **ctx)
 			ch->channelNr = c;
 			ch->analyzePCM = 0;
 			ch->audioPCMLossLimit = 24;
+			ch->analyzePCMConsoleDump = 1;
 
 			if (c == 0 || c == 2)
 				ch->pairedChannel = &o->ch[ (g * SDI_AUDIO_GROUPS) + c + 1 ];
@@ -672,6 +675,20 @@ int ltnsdi_audio_channels_analyze_pcm_reset(struct ltnsdi_context_s *ctx)
 		ch->pcm.sequentialAudioSilence = 0;
 	}
 
+	pthread_mutex_unlock(&channels->mutex);
+
+	return 0;
+}
+
+int ltnsdi_audio_channels_analyze_pcm_console_dump(struct ltnsdi_context_s *ctx, int truefalse)
+{
+	struct sdiaudio_channels_s *channels = getChannels(ctx);
+
+	pthread_mutex_lock(&channels->mutex);
+	for (int i = 0; i < MAXSDI_AUDIO_CHANNELS; i++) {
+		struct sdiaudio_channel_s *ch = &channels->ch[i];
+		ch->analyzePCMConsoleDump = truefalse ? 1 : 0;
+	}
 	pthread_mutex_unlock(&channels->mutex);
 
 	return 0;

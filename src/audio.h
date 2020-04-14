@@ -78,6 +78,7 @@ struct sdiaudio_channel_s
 	/* Flag this channels as due for analysis */
 	unsigned int analyzePCM;
 	unsigned int audioPCMLossLimit;
+	unsigned int analyzePCMConsoleDump;
 
 	/* Statistics */
 	struct {

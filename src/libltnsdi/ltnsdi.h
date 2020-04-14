@@ -102,6 +102,7 @@ int ltnsdi_audio_channels_write(struct ltnsdi_context_s *ctx, uint8_t *buf,
 int ltnsdi_audio_channels_analyze_pcm_enable(struct ltnsdi_context_s *ctx, unsigned int channelNr, int truefalse);
 int ltnsdi_audio_channels_analyze_pcm_limit(struct ltnsdi_context_s *ctx, unsigned int channelNr, unsigned int limit);
 int ltnsdi_audio_channels_analyze_pcm_reset(struct ltnsdi_context_s *ctx);
+int ltnsdi_audio_channels_analyze_pcm_console_dump(struct ltnsdi_context_s *ctx, int truefalse);
 
 struct ltnsdi_status_s
 {

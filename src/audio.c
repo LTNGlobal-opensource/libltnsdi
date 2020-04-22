@@ -570,7 +570,10 @@ int ltnsdi_status_alloc(struct ltnsdi_context_s *ctx, struct ltnsdi_status_s **s
 			s->channels[i].buffersProcessed = ch->pcm.samplesWritten;
 			s->channels[i].lastBufferArrival = ch->pcm.last_update;
 			s->channels[i].pcm_dbFS = ch->pcm.dbFS;
-			sprintf((char *)s->channels[i].pcm_dbFSDescription, "% 04.02f", ch->pcm.dbFS);
+			if (isinf(ch->pcm.dbFS))
+				sprintf((char *)s->channels[i].pcm_dbFSDescription, "   N/A");
+			else
+				sprintf((char *)s->channels[i].pcm_dbFSDescription, "% 04.02f", ch->pcm.dbFS);
 			sprintf((char *)s->channels[i].smpte337_dataTypeDescription, "N/A");
 
 			if (s->channels[i].channelNumber == 1 || s->channels[i].channelNumber == 3)

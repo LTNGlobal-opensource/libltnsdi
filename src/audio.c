@@ -561,7 +561,7 @@ int ltnsdi_status_alloc(struct ltnsdi_context_s *ctx, struct ltnsdi_status_s **s
 		struct sdiaudio_channel_s *ch = &channels->ch[i];
 
 		s->channels[i].groupNumber = ch->groupNr;
-		s->channels[i].channelNumber = ch->channelNr;
+		s->channels[i].channelNumber = ch->channelNr + 1;
 		s->channels[i].wordLength = ch->wordLength;
 
 		switch (sdiaudio_channel_getType(ch)) {
@@ -576,7 +576,7 @@ int ltnsdi_status_alloc(struct ltnsdi_context_s *ctx, struct ltnsdi_status_s **s
 				sprintf((char *)s->channels[i].pcm_dbFSDescription, "% 04.02f", ch->pcm.dbFS);
 			sprintf((char *)s->channels[i].smpte337_dataTypeDescription, "N/A");
 
-			if (s->channels[i].channelNumber == 1 || s->channels[i].channelNumber == 3)
+			if (s->channels[i].channelNumber == 2 || s->channels[i].channelNumber == 4)
 				sprintf((char *)s->channels[i].pcm_channelDescription, "Right");
 			else
 				sprintf((char *)s->channels[i].pcm_channelDescription, "Left");

@@ -201,12 +201,12 @@ static void sdi_monitor_stats_dump_curses()
 			status->channels[i].smpte337_dataTypeDescription,
 			"-");
 
-		if (status->channels[i].channelNumber == 3)
+		if (status->channels[i].channelNumber == 4)
 			printf("\n");
 	}
 #endif
 	for (int i = 0; i < 16; i++) {
-		if (status->channels[i].channelNumber == 0)
+		if (status->channels[i].channelNumber == 1)
 			linecount++;
 
 		char statustxt[20];
@@ -315,7 +315,7 @@ static void sdi_monitor_stats_dump()
 			status->channels[i].smpte337_dataTypeDescription,
 			status->channels[i].pcm_missingAudioCount);
 
-		if (status->channels[i].channelNumber == 3)
+		if (status->channels[i].channelNumber == 4)
 			printf("\n");
 	}
 

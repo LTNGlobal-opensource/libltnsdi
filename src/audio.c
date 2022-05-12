@@ -85,7 +85,7 @@ __inline__ void sdiaudio_channel_statsUpdate(struct sdiaudio_channel_s *ch)
 	}
 }
 
-__inline__ uint32_t be_u16(uint16_t n)
+__inline__ int16_t be_s16(int16_t n)
 {
 #if G_BYTE_ORDER == G_LITTLE_ENDIAN 
     return ((n & 0xff00) >> 8) | (n << 8);
@@ -96,7 +96,7 @@ __inline__ uint32_t be_u16(uint16_t n)
 #endif
 }
 
-__inline__ uint32_t be_u32(uint32_t n)
+__inline__ int32_t be_s32(int32_t n)
 {
 #if G_BYTE_ORDER == G_LITTLE_ENDIAN 
     return ((n & 0xff000000) >> 24) | ((n & 0x00ff0000) >> 8) | ((n & 0x0000ff00) << 8) | (n << 24);
@@ -134,37 +134,28 @@ static __inline__ void incrementChannelBitsPs(struct ltnsdi_context_s *ctx, stru
 
 static uint8_t *demuxChannelWords(struct ltnsdi_context_s *ctx, uint8_t *buf,
         uint32_t audioFrames, uint32_t sampleDepth, uint32_t channelsPerFrame, uint32_t frameStrideBytes, int channelIndex,
-	uint32_t *largestSample)
+        int32_t *largestSample)
 {
 	*largestSample = 0;
-	int16_t big = 0;
-	int16_t small = 0;
 
 	if (sampleDepth == 32) {
 		int step = (frameStrideBytes / sizeof(uint32_t));
-		uint32_t *b   = malloc(audioFrames * sizeof(uint32_t));
-		uint32_t *dst = b;
-		uint32_t *src = (uint32_t *)buf;
+		int32_t *b   = malloc(audioFrames * sizeof(int32_t));
+		int32_t *dst = b;
+		int32_t *src = (int32_t *)buf;
 		src += channelIndex;
 
 		for (int i = 0; i < audioFrames; i++) {
-			*dst = be_u32(*src);
+			*dst = be_s32(*src);
 
-			int16_t x = *src >> 16;
-			int16_t val = (int16_t)x;
+			int16_t x = abs(*src >> 16);
 
-			if (val > big)
-				big = val;
-			else
-			if (val < small)
-				small = val;
-
+			if (x > *largestSample)
+                            *largestSample = x;
 			src += step;
 			dst++;
 		}
 
-		uint32_t maxSampleVariance = abs(small) + abs(big);
-		*largestSample = maxSampleVariance;
 		return (uint8_t *)b;
 	}
 
@@ -172,13 +163,13 @@ static uint8_t *demuxChannelWords(struct ltnsdi_context_s *ctx, uint8_t *buf,
 // TODO: requires testing. */
 printf("%s() 16 bit\n", __func__);
 		uint32_t step = (frameStrideBytes / sizeof(uint16_t));
-		uint32_t *b = malloc(audioFrames * sizeof(uint32_t));
-		uint32_t *dst = b;
-		uint16_t *src = (uint16_t *)buf;
+		int32_t *b = malloc(audioFrames * sizeof(int32_t));
+		int32_t *dst = b;
+		int16_t *src = (int16_t *)buf;
 		src += (channelIndex * (sampleDepth / 8));
 
 		for (int i = 0; i < audioFrames; i++) {
-			*dst = be_u16(*src);
+			*dst = be_s16(*src);
 			if (*dst > *largestSample)
 				*largestSample = *dst;
 			src += step;
@@ -356,7 +347,7 @@ int ltnsdi_audio_channels_write(struct ltnsdi_context_s *ctx, uint8_t *buf,
 		/* Now process the payload as if its PCM. */
 
 		/* De-interleave the sample. */
-		uint32_t largestSample = 0;
+		int32_t largestSample = 0;
 		uint8_t *dat = demuxChannelWords(ctx, buf, audioFrames, sampleDepth, channelsPerFrame, frameStrideBytes, i, &largestSample);
 		if (!dat)
 			continue;

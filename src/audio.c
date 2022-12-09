@@ -547,10 +547,14 @@ int ltnsdi_status_alloc(struct ltnsdi_context_s *ctx, struct ltnsdi_status_s **s
 
 	struct sdiaudio_channels_s *channels = getChannels(ctx);
 
+	int ltn_pairs[16] = { 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8 };
+
 	pthread_mutex_lock(&channels->mutex);
 	for (int i = 0; i < MAXSDI_AUDIO_CHANNELS; i++) {
 		struct sdiaudio_channel_s *ch = &channels->ch[i];
 
+		s->channels[i].LTNPairNumber = ltn_pairs[i];
+		s->channels[i].LTNChannelNumber = i + 1;
 		s->channels[i].groupNumber = ch->groupNr;
 		s->channels[i].channelNumber = ch->channelNr + 1;
 		s->channels[i].wordLength = ch->wordLength;

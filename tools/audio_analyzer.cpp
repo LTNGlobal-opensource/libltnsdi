@@ -172,8 +172,8 @@ static void sdi_monitor_stats_dump_curses()
         attroff(COLOR_PAIR(headLineColor));
 
 	attron(COLOR_PAIR(6));
-	mvprintw(linecount++, 0, "Grp  Ch  Width  Payload                                              Bitrate                          Payload  ");
-	mvprintw(linecount++, 0, " Nr  Nr    Bit  Description        Type  Name                        Kb p/s    Last Update            Buffers  Status");
+	mvprintw(linecount++, 0, "        Width  Payload                                              Bitrate                          Payload  ");
+	mvprintw(linecount++, 0, "Pair Ch   Bit  Description        Type  Name                        Kb p/s    Last Update            Buffers  Status");
 	attroff(COLOR_PAIR(6));
 
 	struct ltnsdi_status_s *status;
@@ -181,30 +181,6 @@ static void sdi_monitor_stats_dump_curses()
 		return;
 	}
 
-#if 0
-	printf("\n");
-	printf("Group  Channel  Len           \n");
-	printf("   Nr       Nr  bit Type           Description   Buffers  LastBuffer           Payload                  dbFS  Mode Type Description\n");
-	for (int i = 0; i < 16; i++) {
-		printf("    %d        %d   %2d 0x%02x  %20s  %8" PRIu64 "  %s  %s %s     %d    %d %s %s\n",
-			status->channels[i].groupNumber,
-			status->channels[i].channelNumber,
-			status->channels[i].wordLength,
-			status->channels[i].type,
-			status->channels[i].typeDescription,
-			status->channels[i].buffersProcessed,
-			status->channels[i].lastBufferArrivalDescription,
-			status->channels[i].lastBufferPayloadHeader,
-			status->channels[i].pcm_dbFSDescription,
-			status->channels[i].smpte337_dataMode,
-			status->channels[i].smpte337_dataType,
-			status->channels[i].smpte337_dataTypeDescription,
-			"-");
-
-		if (status->channels[i].channelNumber == 4)
-			printf("\n");
-	}
-#endif
 	for (int i = 0; i < 16; i++) {
 		if (status->channels[i].channelNumber == 1)
 			linecount++;
@@ -219,9 +195,9 @@ static void sdi_monitor_stats_dump_curses()
 			sprintf(statustxt, "");
 		}
 
-		mvprintw(linecount++, 0, "  %d   %d     %2d  %-18s 0x%02x  %-28s%-9s %-19s  %9d  %s",
-			status->channels[i].groupNumber,
-			status->channels[i].channelNumber,
+		mvprintw(linecount++, 0, "   %d %2d    %2d  %-18s 0x%02x  %-28s%-9s %-19s  %9d  %s",
+			status->channels[i].LTNPairNumber,
+			status->channels[i].LTNChannelNumber,
 			status->channels[i].wordLength,
 			status->channels[i].typeDescription,
 			status->channels[i].type,
@@ -297,12 +273,12 @@ static void sdi_monitor_stats_dump()
 
 	printf("\n");
 	printf("LTNSDI_AUDIO_ANALYZER (%s)\n", g_hostname);
-	printf("Group  Channel  Len           \n");
-	printf("   Nr       Nr  bit Type           Description   Buffers  LastBuffer           Payload                   dbFS  Mode Type Description\n");
+	printf(" Pair  Channel  Len           \n");
+	printf("   Nr       Nr  bit Type           Description   Buffers  LastBuffer           Payload                    dbFS Mode Type Description\n");
 	for (int i = 0; i < 16; i++) {
-		printf("    %d        %d   %2d 0x%02x  %20s  %8" PRIu64 "  %s  %s %s     %d    %d %s  missing: %d\n",
-			status->channels[i].groupNumber,
-			status->channels[i].channelNumber,
+		printf("    %d       %2d   %2d 0x%02x  %20s  %8" PRIu64 "  %s  %s %s     %d    %d %s  missing: %d\n",
+			status->channels[i].LTNPairNumber,
+			status->channels[i].LTNChannelNumber,
 			status->channels[i].wordLength,
 			status->channels[i].type,
 			status->channels[i].typeDescription,

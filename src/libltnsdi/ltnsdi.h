@@ -109,6 +109,8 @@ struct ltnsdi_status_s
 	struct {
 		uint32_t groupNumber;
 		uint32_t channelNumber;
+		uint32_t LTNPairNumber;
+		uint32_t LTNChannelNumber;
 		uint32_t wordLength;
 
 		/* 1 = PCM

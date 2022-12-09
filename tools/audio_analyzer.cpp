@@ -97,11 +97,12 @@ static int g_showStartupMemory = 0;
 static int g_verbose = 0;
 
 static IDeckLink *deckLink;
+static IDeckLinkAttributes *deckLinkAttributes;
 static IDeckLinkInput *deckLinkInput;
 static IDeckLinkDisplayModeIterator *displayModeIterator;
+static int64_t g_supportedAudioChannelCount = 16;
 
 static BMDTimecodeFormat g_timecodeFormat = 0;
-static uint32_t g_audioChannels = 16;
 static uint32_t g_audioSampleDepth = 32;
 static int g_videoModeIndex = -1;
 static int g_shutdown = 0;
@@ -181,7 +182,7 @@ static void sdi_monitor_stats_dump_curses()
 		return;
 	}
 
-	for (int i = 0; i < 16; i++) {
+	for (int i = 0; i < g_supportedAudioChannelCount; i++) {
 		if (status->channels[i].channelNumber == 1)
 			linecount++;
 
@@ -275,7 +276,7 @@ static void sdi_monitor_stats_dump()
 	printf("LTNSDI_AUDIO_ANALYZER (%s)\n", g_hostname);
 	printf(" Pair  Channel  Len           \n");
 	printf("   Nr       Nr  bit Type           Description   Buffers  LastBuffer           Payload                    dbFS Mode Type Description\n");
-	for (int i = 0; i < 16; i++) {
+	for (int i = 0; i < g_supportedAudioChannelCount; i++) {
 		printf("    %d       %2d   %2d 0x%02x  %20s  %8" PRIu64 "  %s  %s %s     %d    %d %s  missing: %d\n",
 			status->channels[i].LTNPairNumber,
 			status->channels[i].LTNChannelNumber,
@@ -503,7 +504,7 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoInputFrame
 		audioFrameCount++;
 		frameTime = &frameTimes[1];
 
-		uint32_t sampleSize = audioFrame->GetSampleFrameCount() * 16 * (32 / 8);
+		uint32_t sampleSize = audioFrame->GetSampleFrameCount() * g_supportedAudioChannelCount * (32 / 8);
 
 		unsigned long long t = msecsX10();
 		double interval = t - frameTime->lastTime;
@@ -516,14 +517,14 @@ HRESULT DeckLinkCaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoInputFrame
 				audioFrameCount,
 				sampleSize,
 				sfc,
-				16,
+				g_supportedAudioChannelCount,
 				32 / 8,
 				interval);
 		}
 
 		audioFrame->GetBytes(&audioFrameBytes);
-		uint32_t strideBytes = 16 * (32 / 8);
-		if (ltnsdi_audio_channels_write(g_sdi_ctx, (uint8_t *)audioFrameBytes, sfc, 32, 16, strideBytes) < 0) {
+		uint32_t strideBytes = g_supportedAudioChannelCount * (32 / 8);
+		if (ltnsdi_audio_channels_write(g_sdi_ctx, (uint8_t *)audioFrameBytes, sfc, 32, g_supportedAudioChannelCount, strideBytes) < 0) {
 		}
 
 		frameTime->frameCount++;
@@ -703,6 +704,14 @@ static int _main(int argc, char *argv[])
 		}
 	}
 
+	if (deckLink->QueryInterface(IID_IDeckLinkAttributes, (void **)&deckLinkAttributes) != S_OK) {
+		fprintf(stderr, "No capture devices attributes found.\n");
+		goto bail;
+	}
+
+	deckLinkAttributes->GetInt(BMDDeckLinkMaximumAudioChannels, &g_supportedAudioChannelCount);
+	deckLinkAttributes->Release();
+
 	if (deckLink->QueryInterface(IID_IDeckLinkInput, (void **)&deckLinkInput) != S_OK) {
 		fprintf(stderr, "No input capture devices found.\n");
 		goto bail;
@@ -770,7 +779,7 @@ static int _main(int argc, char *argv[])
 		goto bail;
 	}
 
-	result = deckLinkInput->EnableAudioInput(bmdAudioSampleRate48kHz, 32, 16);
+	result = deckLinkInput->EnableAudioInput(bmdAudioSampleRate48kHz, 32, g_supportedAudioChannelCount);
 	if (result != S_OK) {
 		fprintf(stderr, "Failed to enable audio input. Is another application using the card?\n");
 		goto bail;
@@ -786,7 +795,7 @@ static int _main(int argc, char *argv[])
 	else
 		ltnsdi_audio_channels_analyze_pcm_console_dump(g_sdi_ctx, 1);
 
-	for (int i = 0; i < 16; i++) {
+	for (int i = 0; i < g_supportedAudioChannelCount; i++) {
 		if (analyzeBitmask & (1 << i)) {
 			ltnsdi_audio_channels_analyze_pcm_enable(g_sdi_ctx, i, 1);
 			ltnsdi_audio_channels_analyze_pcm_limit(g_sdi_ctx, i, audioLossLimit);
